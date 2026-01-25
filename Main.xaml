@@ -5,120 +5,153 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <!-- Main grid -->
+        Title="MainWindow" Height="450" Width="800"
+        Background="#FF1E1E1E">
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="1.5*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <!-- Upper -->
-        <Grid Grid.Row="0" Background="Black">
+
+        <!-- Upper Section -->
+        <Border Grid.Row="0" Background="#AA111111" CornerRadius="10" Margin="5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="3*"/>
                     <ColumnDefinition Width="*"/>
-
                 </Grid.ColumnDefinitions>
 
+                <!-- MEDIA PANEL -->
+                <Border Background="#22111111" CornerRadius="8" Margin="2">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                <!-- MEDIA -->
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <!-- DRAG and DROP -->
-                    <Grid Background="AliceBlue" HorizontalAlignment="Stretch" >
-                        <Button Click="import_media" Content="Import Media" VerticalAlignment="Center" HorizontalAlignment="Center" Width="91"></Button>
+                        <!-- DRAG and DROP BUTTON -->
+                        <Border Background="#33111111" CornerRadius="5" Margin="2">
+                            <Button Click="import_media" Content="Import Media" VerticalAlignment="Center" HorizontalAlignment="Center" Width="91"
+                                    Background="#FF2D2D30" Foreground="White" BorderThickness="0" Padding="5" Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#FF2D2D30"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="BorderBrush" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FF3A3A40"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter Property="Background" Value="#FF4A4A50"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
+
+                        <!-- Imported Media ScrollViewer -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                      Background="#22111111" Margin="2" >
+                            <Canvas x:Name="imported_media"/>
+                        </ScrollViewer>
                     </Grid>
+                </Border>
 
-                    <!-- MEDIA -->
-                    <ScrollViewer  Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <!-- PREVIEW PANEL -->
+                <Border Grid.Column="1" Background="#AA222222" CornerRadius="8" Margin="2">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                        <Canvas x:Name="imported_media"/>
-
-                    </ScrollViewer>
-
-                </Grid>
-
-                <!-- PREVIEW -->
-                <Grid Grid.Column="1">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Grid Background="Gray">
-                        <Button Content="BTN-1" Width="20" Height="20" Background="Black"/>
-                        <Button Content="BTN-1" Width="20" Height="20" Background="Black" Margin="255,10,205,10"/>
-                        <Button Content="BTN-1" Width="20" Height="20" Background="Black" Margin="205,10,255,10"/>
-                    </Grid>
-                    <ScrollViewer Grid.Row="1"  HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" >
-                        <Canvas Name="previewCanvas" Background="Gray" Margin="156,41,155,41">
-
-                            <Grid Name="preview_Lines" Background="Transparent" Width="{Binding ActualWidth, ElementName=previewCanvas}" Height="{Binding ActualHeight, ElementName=previewCanvas}">
-                                <Rectangle Height="2" Fill="Red" HorizontalAlignment="Stretch" VerticalAlignment="Center" Name="Horizontal_line"/>
-                                <Rectangle Width="2" Fill="Red" VerticalAlignment="Stretch" HorizontalAlignment="Center" Name="Vertical_line"/>
+                        <Border Background="#33111111" CornerRadius="5" Margin="2">
+                            <Grid>
+                                <Button Content="BTN-1" Width="20" Height="20" Background="#FF2D2D30" Foreground="White" BorderThickness="0"/>
+                                <Button Content="BTN-1" Width="20" Height="20" Background="#FF2D2D30" Foreground="White" BorderThickness="0" Margin="255,10,205,10"/>
+                                <Button Content="BTN-1" Width="20" Height="20" Background="#FF2D2D30" Foreground="White" BorderThickness="0" Margin="205,10,255,10"/>
                             </Grid>
-                            
-                        </Canvas>
+                        </Border>
 
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
+                            <Canvas Name="previewCanvas" Background="#AA111111" Margin="156,41,155,41">
+                                <Grid Name="preview_Lines" Background="Transparent" Width="{Binding ActualWidth, ElementName=previewCanvas}" Height="{Binding ActualHeight, ElementName=previewCanvas}">
+                                    <Rectangle Height="2" Fill="Red" HorizontalAlignment="Stretch" VerticalAlignment="Center" Name="Horizontal_line"/>
+                                    <Rectangle Width="2" Fill="Red" VerticalAlignment="Stretch" HorizontalAlignment="Center" Name="Vertical_line"/>
+                                </Grid>
+                            </Canvas>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- EFFECTS PANEL -->
+                <Border Grid.Column="2" Background="#22111111" CornerRadius="8" Margin="2">
+                    <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
+                         <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd"/>
                     </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Lower Section -->
+        <Border Grid.Row="1" Background="#AA111111" CornerRadius="10" Margin="5">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT EDGE -->
+                    <StackPanel Grid.Column="0" Margin="10,0,10,0" Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Content="L-BTN" Margin="0,0,0,5" Width="20" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                Background="#FF2D2D30" Foreground="White" BorderThickness="0" Padding="3" />
+                        <Button Content="L-BTN" Margin="0,0,0,5" Width="20" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                Background="#FF2D2D30" Foreground="White" BorderThickness="0" Padding="3" />
+                    </StackPanel>
+
+                    <!-- MIDDLE -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Button Content="Middle Button" Click="PlayBTN" Background="#FF2D2D30" Foreground="White" BorderThickness="0"  Padding="5"/>
+                        <Label Content="Label 1" VerticalAlignment="Center" Name="CurrentTime" Foreground="White"/>
+                        <Label Content="Label 2" VerticalAlignment="Center" Name="Total_Time" Foreground="White"/>
+                    </StackPanel>
+
+                    <!-- RIGHT EDGE -->
+                    <Slider Grid.Column="2" HorizontalAlignment="Right" Width="120" VerticalAlignment="Center" Margin="10" Foreground="Red"/>
                 </Grid>
 
+                <!-- Timeline -->
+                <Border Grid.Row="1" Background="#AA111111" CornerRadius="8" Margin="5">
+                    <Canvas x:Name="timeline" PreviewMouseLeftButtonDown="Timeline_Click" Background="Transparent">
+                        <Rectangle Name="rowShower" Fill="#FF3A3A40" Height="40" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}" RadiusX="5" RadiusY="5"/>
+                        <Rectangle Width="2" Fill="Red" Name="Vertical_TimeLine" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
+                    </Canvas>
 
-                <!-- Effects -->
-                <ScrollViewer Grid.Column="2"  HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-
-                </ScrollViewer>
+                </Border>
 
             </Grid>
-        </Grid>
-
-
-        <!-- Lower -->
-        <Grid Grid.Row="1" Background="Gray">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="30"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- LEFT EDGE -->
-                <StackPanel Grid.Column="0"  Margin="10,0,10,0" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <Button Content="L-BTN" Margin="0,0,0,5" Width="20" VerticalAlignment="Center" HorizontalAlignment="Left" />
-                    <Button Content="L-BTN" Margin="0,0,0,5" Width="20" VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                </StackPanel>
-
-                <!-- MIDDLE -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal"  
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center">
-                    <Button Content="Middle Button"/>
-                    <Label Content="Label 1" VerticalAlignment="Center"/>
-                    <Label Content="Label 2" VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <!-- RIGHT EDGE -->
-                <Slider Grid.Column="2" HorizontalAlignment="Right"
-                Width="120"
-                VerticalAlignment="Center"
-                Margin="10"/>
-            </Grid>
-
-            <Canvas Grid.Row="1" Background="Black" x:Name="timeline">
-                <Rectangle Name="rowShower" Fill="Aqua" Height="40" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
-            </Canvas>
-        </Grid>
+        </Border>
     </Grid>
-
-
-
 </Window>
