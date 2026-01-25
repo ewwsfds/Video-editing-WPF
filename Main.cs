@@ -18,12 +18,19 @@ namespace WpfApp1
     /// </summary>
     public partial class MainWindow : Window
     {
+        //Timeline Canvas
         double rowHeight = 40;
         bool fadestarted = false;
         private const double SNAP_DISTANCE = 50;
         private List<Canvas> canvases = new List<Canvas>();
 
 
+        //Preview Canvas
+
+        private int offsetX = 10;
+        private DateTime lastSnapCheck = DateTime.MinValue; // class-level
+
+        private List<Canvas> Preview_canvases = new List<Canvas>();
         public MainWindow()
         {
             InitializeComponent();
@@ -250,6 +257,185 @@ namespace WpfApp1
             };
 
 
+
+
+
+
+
+
+
+
+
+
+            // Create a new Canvas
+            Canvas Preview_canvas = new Canvas
+            {
+                Width = 30,
+                Height = 40,
+                Background = Brushes.Black
+            };
+
+            // Set initial position of canvas
+            Canvas.SetLeft(Preview_canvas, offsetX);
+            Canvas.SetTop(Preview_canvas, 10);
+            offsetX += 70;
+
+            // Create a rectangle inside the canvas
+            Rectangle rect = new Rectangle
+            {
+                Width = 10,
+                Height = 10,
+                Fill = Brushes.Red
+            };
+
+            // Set rectangle slightly outside top-left of its canvas
+            Canvas.SetLeft(rect, -9);
+            Canvas.SetTop(rect, -9);
+
+            Preview_canvas.Children.Add(rect);
+            previewCanvas.Children.Add(Preview_canvas);
+
+            // Prepare dragging variables
+            bool Preview_isDragging = false;
+            bool Preview_isresizing = false;
+
+            Point Preview_startPos = new Point();
+
+            Point RecstartPos = new Point();
+
+
+
+            TranslateTransform canvasTransform = new TranslateTransform();
+            Preview_canvas.RenderTransform = canvasTransform;
+
+            Preview_canvases.Add(Preview_canvas);
+
+
+
+
+
+
+
+            double startWidth = Preview_canvas.Width;
+            double startHeight = Preview_canvas.Height;
+            double aspect = startWidth / startHeight;
+
+
+
+
+
+            rect.MouseLeftButtonDown += (s, me) =>
+            {
+                Preview_isresizing = true;
+                RecstartPos = me.GetPosition(previewCanvas);
+                me.Handled = true; // prevent canvas from also reacting
+            };
+
+
+            // start Timer
+            // Mouse down: start dragging
+            Preview_canvas.MouseLeftButtonDown += (s, me) =>
+            {
+                Preview_isDragging = true;
+                Preview_startPos = me.GetPosition(previewCanvas);
+                Preview_canvas.CaptureMouse();
+
+
+
+
+            };
+
+            Preview_canvas.MouseMove += (s, me) =>
+            {
+                if (!Preview_isDragging) return;
+
+                Point currentPos = me.GetPosition(previewCanvas);
+
+                double dx = currentPos.X - Preview_startPos.X;
+                double dy = currentPos.Y - Preview_startPos.Y;
+
+                // Current position
+                double left = Canvas.GetLeft(Preview_canvas);
+                double top = Canvas.GetTop(Preview_canvas);
+
+                // Move normally
+                left += dx;
+                top += dy;
+
+                // --- center of preview canvas ---
+                double canvasCenterX = left + Preview_canvas.Width / 2;
+                double canvasCenterY = top + Preview_canvas.Height / 2;
+
+                // --- center lines ---
+                double verticalLineX = previewCanvas.ActualWidth / 2;
+                double horizontalLineY = previewCanvas.ActualHeight / 2;
+
+                const double snapDistance = 25;
+
+                double MsnapDistance = Preview_canvas.ActualHeight * 0.35;
+                // --- Vertical snap ---
+                if (Math.Abs(canvasCenterX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
+                {
+                    left = verticalLineX - Preview_canvas.Width / 2;
+                    Vertical_line.Fill = Brushes.Red;
+                }
+                else
+                {
+                    Vertical_line.Fill = Brushes.Transparent;
+                }
+
+                // --- Horizontal snap ---
+                if (Math.Abs(canvasCenterY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
+                {
+                    top = horizontalLineY - Preview_canvas.Height / 2;
+                    Horizontal_line.Fill = Brushes.Red;
+                }
+                else
+                {
+                    Horizontal_line.Fill = Brushes.Transparent;
+                }
+
+                // Apply position
+                Canvas.SetLeft(Preview_canvas, left);
+                Canvas.SetTop(Preview_canvas, top);
+
+                Preview_startPos = currentPos;
+            };
+
+
+
+
+            Preview_canvas.MouseLeftButtonUp += (s, me) =>
+            {
+                Preview_isDragging = false;
+                Preview_canvas.ReleaseMouseCapture();
+
+                Vertical_line.Fill = Brushes.Transparent;
+                Horizontal_line.Fill = Brushes.Transparent;
+            };
+
+            // Handle mouse move on the parent (previewWindow or canvas)
+            this.MouseMove += (s, me) =>
+            {
+                if (!Preview_isresizing || Mouse.LeftButton != MouseButtonState.Pressed) return;
+
+                Point currentPos = me.GetPosition(previewCanvas);
+                double dx = currentPos.X - RecstartPos.X;
+                double dy = currentPos.Y - RecstartPos.Y;
+
+                double delta = (Math.Abs(dx) > Math.Abs(dy)) ? dx : dy;
+
+                Preview_canvas.Width = Math.Max(1, Preview_canvas.Width - delta);
+                Preview_canvas.Height = Math.Max(1, Preview_canvas.Height - delta);
+
+                RecstartPos = currentPos;
+            };
+
+            // Handle mouse up on the parent
+            this.MouseLeftButtonUp += (s, me) =>
+            {
+                Preview_isresizing = false;
+            };
         }
 
         private void RowSnap(TranslateTransform translate, Canvas canvas)
