@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +11,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace WpfApp1
 {
@@ -18,6 +20,8 @@ namespace WpfApp1
     /// </summary>
     public partial class MainWindow : Window
     {
+
+
         //Timeline Canvas
         double rowHeight = 40;
         bool fadestarted = false;
@@ -30,11 +34,36 @@ namespace WpfApp1
         private int offsetX = 10;
         private DateTime lastSnapCheck = DateTime.MinValue; // class-level
 
-        private List<Canvas> Preview_canvases = new List<Canvas>();
+
+        private bool isPlaying=false;
+
+        // Create the TranslateTransform once
+        private TranslateTransform Vertical_Timeline_Transform = new TranslateTransform();
+
+        public class PreviewCanvasInfo
+        {
+            public Canvas Canvas { get; set; }
+            public double start { get; set; }
+            public double Y { get; set; }
+            public double end { get; set; }
+            public double height { get; set; }
+            public double width { get; set; }
+
+        }
+
+        private List<PreviewCanvasInfo> Preview_canvases = new List<PreviewCanvasInfo>();
+
+
         public MainWindow()
         {
             InitializeComponent();
             rowShower.Fill = Brushes.Transparent;
+
+            Canvas.SetZIndex(Vertical_TimeLine, 1000); // ensures it's always on top
+
+
+            // Apply it to the rectangle
+            Vertical_TimeLine.RenderTransform = Vertical_Timeline_Transform;
         }
 
         private void import_media(object sender, RoutedEventArgs e)
@@ -55,8 +84,108 @@ namespace WpfApp1
             }
         }
 
+
+
+
+
+
+        // Click event handler
+        private void Timeline_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Mouse position relative to the timeline Canvas (or parent)
+            double mouseX = e.GetPosition(timeline).X;
+
+            // Move the rectangle, centering it on the click
+            Vertical_Timeline_Transform.X = mouseX - Vertical_TimeLine.Width / 2;
+
+            // Update label
+            CurrentTime.Content = ((int)mouseX).ToString();
+
+            PreviewChecker();
+        }
+
+        DispatcherTimer playTimer;
+
+        private void StartTimelinePlayback()
+        {
+            double speed = 25; // pixels per second
+
+            playTimer = new DispatcherTimer();
+            playTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
+
+            playTimer.Tick += (s, e) =>
+            {
+                if (!isPlaying) return;
+
+                double deltaSeconds = playTimer.Interval.TotalSeconds;
+
+                Vertical_Timeline_Transform.X += speed * deltaSeconds;
+                PreviewChecker();
+
+            };
+
+            playTimer.Start();
+
+        }
+
+
+        private void PlayBTN(object sender, RoutedEventArgs e)
+        {
+            isPlaying = !isPlaying;
+            StartTimelinePlayback();
+        }
+
+
+
+
+        // make a function if isplying make  Vertical_TimeLine move 5px/second using transform
+
         private void AddMediaToCanvas(string path)
         {
+
+            // Create a new Canvas
+            Canvas Preview_canvas = new Canvas
+            {
+                Width = 30,
+                Height = 40,
+                Background = Brushes.Black
+            };
+
+            // Set initial position of canvas
+            Canvas.SetLeft(Preview_canvas, offsetX);
+            Canvas.SetTop(Preview_canvas, 10);
+            offsetX += 70;
+
+            // Create a rectangle inside the canvas
+            Rectangle rect = new Rectangle
+            {
+                Width = 10,
+                Height = 10,
+                Fill = Brushes.Red
+            };
+
+            // Set rectangle slightly outside top-left of its canvas
+            Canvas.SetLeft(rect, -9);
+            Canvas.SetTop(rect, -9);
+
+            Preview_canvas.Children.Add(rect);
+            previewCanvas.Children.Add(Preview_canvas);
+
+            // Prepare dragging variables
+            bool Preview_isDragging = false;
+            bool Preview_isresizing = false;
+
+            Point Preview_startPos = new Point();
+
+            Point RecstartPos = new Point();
+
+
+
+            TranslateTransform canvasTransform = new TranslateTransform();
+            Preview_canvas.RenderTransform = canvasTransform;
+
+
+
             //Media Canvas
             Canvas canvasMedia = new Canvas
             {
@@ -93,6 +222,24 @@ namespace WpfApp1
             TranslateTransform translate = new TranslateTransform();
             canvas.RenderTransform = translate;
 
+
+
+            // Wrap it into your custom class
+            PreviewCanvasInfo info = new PreviewCanvasInfo
+            {
+                Canvas = Preview_canvas,
+                start = translate.X,
+                Y = translate.Y,
+                end = translate.X + canvas.Width,
+                height = Preview_canvas.Height,
+                width = Preview_canvas.Width,
+
+            };
+
+            // Add it to the list
+            Preview_canvases.Add(info);
+
+
             canvas.MouseLeftButtonDown += (s, me) =>
             {
                 isDragging = true;
@@ -123,6 +270,13 @@ namespace WpfApp1
                 isDragging = false;
                 canvas.ReleaseMouseCapture();
                 RowSnap(translate, canvas);
+
+                // Save it to preview canvas
+                // Update stored info
+                info.start = translate.X;
+                info.Y = translate.Y;
+                info.end = translate.X+canvas.Width;
+
             };
 
             if (canvases.Count % 2 == 0)
@@ -240,6 +394,10 @@ namespace WpfApp1
 
                 // important: reset start position so dragging is stable
                 rectStartPos = currentPos;
+                // Update stored info
+                info.start = translate.X;
+                info.Y = translate.Y;
+                info.end = translate.X + canvas.Width;
 
                 // keep right handle on edge
                 Canvas.SetLeft(rectRight, canvas.Width - rectRight.Width);
@@ -267,53 +425,12 @@ namespace WpfApp1
 
 
 
-            // Create a new Canvas
-            Canvas Preview_canvas = new Canvas
-            {
-                Width = 30,
-                Height = 40,
-                Background = Brushes.Black
-            };
-
-            // Set initial position of canvas
-            Canvas.SetLeft(Preview_canvas, offsetX);
-            Canvas.SetTop(Preview_canvas, 10);
-            offsetX += 70;
-
-            // Create a rectangle inside the canvas
-            Rectangle rect = new Rectangle
-            {
-                Width = 10,
-                Height = 10,
-                Fill = Brushes.Red
-            };
-
-            // Set rectangle slightly outside top-left of its canvas
-            Canvas.SetLeft(rect, -9);
-            Canvas.SetTop(rect, -9);
-
-            Preview_canvas.Children.Add(rect);
-            previewCanvas.Children.Add(Preview_canvas);
-
-            // Prepare dragging variables
-            bool Preview_isDragging = false;
-            bool Preview_isresizing = false;
-
-            Point Preview_startPos = new Point();
-
-            Point RecstartPos = new Point();
-
-
-
-            TranslateTransform canvasTransform = new TranslateTransform();
-            Preview_canvas.RenderTransform = canvasTransform;
-
-            Preview_canvases.Add(Preview_canvas);
 
 
 
 
 
+            // PReview Drag
 
 
             double startWidth = Preview_canvas.Width;
@@ -417,19 +534,40 @@ namespace WpfApp1
             // Handle mouse move on the parent (previewWindow or canvas)
             this.MouseMove += (s, me) =>
             {
-                if (!Preview_isresizing || Mouse.LeftButton != MouseButtonState.Pressed) return;
+                if (!Preview_isresizing || Mouse.LeftButton != MouseButtonState.Pressed)
+                    return;
 
                 Point currentPos = me.GetPosition(previewCanvas);
+
                 double dx = currentPos.X - RecstartPos.X;
                 double dy = currentPos.Y - RecstartPos.Y;
 
                 double delta = (Math.Abs(dx) > Math.Abs(dy)) ? dx : dy;
 
-                Preview_canvas.Width = Math.Max(1, Preview_canvas.Width - delta);
-                Preview_canvas.Height = Math.Max(1, Preview_canvas.Height - delta);
+                double minSize = 30;
+                double maxSize = 250;
+
+                // Resize ONLY width
+                double newWidth = Preview_canvas.Width - delta;
+
+                // Clamp width only
+                newWidth = Math.Max(minSize, Math.Min(maxSize, newWidth));
+
+                // Maintain aspect ratio
+                double newHeight = newWidth / aspect;
+
+                Preview_canvas.Width = newWidth;
+                Preview_canvas.Height = newHeight;
 
                 RecstartPos = currentPos;
+
+                // save values
+                info.width = newWidth;
+                info.height = newHeight;
             };
+
+
+
 
             // Handle mouse up on the parent
             this.MouseLeftButtonUp += (s, me) =>
@@ -494,7 +632,10 @@ namespace WpfApp1
             if (foundSpot)
             {
                 translate.X = targetX;
-                translate.Y = Canvas.GetTop(rowShower);
+                double rowTop = Canvas.GetTop(rowShower);
+                if (double.IsNaN(rowTop)) rowTop = 0; // fallback to 0 if unset
+                translate.Y = rowTop;
+
 
             }
             else
@@ -579,8 +720,36 @@ namespace WpfApp1
             rowShower.Fill = Brushes.Gray;
         }
 
+
+
+
+        private void PreviewChecker()
+        {
+            double timelineX = Vertical_Timeline_Transform.X;
+            StringBuilder debugText = new StringBuilder();
+            foreach (var previewCanvas in Preview_canvases)
+            {
+                if (previewCanvas.start< timelineX && timelineX<= previewCanvas.end)
+                {
+                    previewCanvas.Canvas.Opacity = 1;
+                    previewCanvas.Canvas.IsHitTestVisible = true;
+                }
+                else
+                {
+                    previewCanvas.Canvas.Opacity = 0;
+                    previewCanvas.Canvas.IsHitTestVisible = false;
+                }
+                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.width/ previewCanvas.height}");
+            }
+
+            DebugLiv.Text = debugText.ToString();
+        }
+
+
+
+
+
+
+
     }
-
-
-
 }
