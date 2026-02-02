@@ -5,6 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
+        KeyDown="Window_KeyDown" 
+        Focusable="True"    
         Title="MainWindow" Height="450" Width="800"
         Background="#FF1E1E1E">
 
@@ -102,7 +104,7 @@
                 <!-- EFFECTS PANEL -->
                 <Border Grid.Column="2" Background="#22111111" CornerRadius="8" Margin="2">
                     <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                         <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd"/>
+                        <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd"/>
                     </ScrollViewer>
                 </Border>
             </Grid>
@@ -145,8 +147,10 @@
                 <!-- Timeline -->
                 <Border Grid.Row="1" Background="#AA111111" CornerRadius="8" Margin="5">
                     <Canvas x:Name="timeline" PreviewMouseLeftButtonDown="Timeline_Click" Background="Transparent">
-                        <Rectangle Name="rowShower" Fill="#FF3A3A40" Height="40" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}" RadiusX="5" RadiusY="5"/>
+                        <Rectangle Name="timeShower" Fill="#FF3A3A40" Height="20" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"  HorizontalAlignment="Center" VerticalAlignment="Top"/>
                         <Rectangle Width="2" Fill="Red" Name="Vertical_TimeLine" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
+                        <Rectangle Name="rowShower" Fill="#FF3A3A40" Height="40" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}" RadiusX="5" RadiusY="5" Canvas.Left="2" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
                     </Canvas>
 
                 </Border>
