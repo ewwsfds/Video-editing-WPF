@@ -1,5 +1,6 @@
 using Microsoft.Win32;
-using System.Security.Cryptography.Xml;
+using System.Collections.Generic;
+using System;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Threading;
 
 namespace WpfApp1
 {
@@ -35,7 +37,7 @@ namespace WpfApp1
         private DateTime lastSnapCheck = DateTime.MinValue; // class-level
 
 
-        private bool isPlaying=false;
+        private bool isPlaying = false;
 
         // Create the TranslateTransform once
         private TranslateTransform Vertical_Timeline_Transform = new TranslateTransform();
@@ -48,6 +50,8 @@ namespace WpfApp1
             public double end { get; set; }
             public double height { get; set; }
             public double width { get; set; }
+            public Image image { get; set; }
+            public MediaElement media { get; set; }
 
         }
 
@@ -61,28 +65,35 @@ namespace WpfApp1
 
             Canvas.SetZIndex(Vertical_TimeLine, 1000); // ensures it's always on top
 
+            Vertical_line.Fill = Brushes.Transparent;
+            Horizontal_line.Fill = Brushes.Transparent;
 
             // Apply it to the rectangle
             Vertical_TimeLine.RenderTransform = Vertical_Timeline_Transform;
         }
 
+
+
         private void import_media(object sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFileDialog();
-
-            dialog.Multiselect = true;
-
-            dialog.Filter =
-                "Media Files|*.jpg;*.jpeg;*.png;*.mp4;*.mov;*.avi;*.wmv";
+            var dialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                Filter = "Media Files|*.jpg;*.jpeg;*.png;*.mp4;*.mov;*.avi;*.wmv"
+            };
 
             if (dialog.ShowDialog() != true)
                 return;
 
             foreach (var file in dialog.FileNames)
             {
-                AddMediaToCanvas(file);
+                // Hämta filtypen
+                string fileType = System.IO.Path.GetExtension(file).ToLower(); // t.ex. ".jpg"
+
+                AddMediaToCanvas(file, fileType);
             }
         }
+
 
 
 
@@ -106,28 +117,44 @@ namespace WpfApp1
 
         DispatcherTimer playTimer;
 
+        private DateTime lastTick;
+
         private void StartTimelinePlayback()
         {
             double speed = 25; // pixels per second
 
             playTimer = new DispatcherTimer();
             playTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
+            lastTick = DateTime.Now;
 
             playTimer.Tick += (s, e) =>
             {
                 if (!isPlaying) return;
 
-                double deltaSeconds = playTimer.Interval.TotalSeconds;
+                // Measure actual elapsed time
+                DateTime now = DateTime.Now;
+                double deltaSeconds = (now - lastTick).TotalSeconds;
+                lastTick = now;
 
                 Vertical_Timeline_Transform.X += speed * deltaSeconds;
-                PreviewChecker();
+                CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
 
+                PreviewChecker();
             };
 
             playTimer.Start();
-
         }
 
+
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+            {
+                isPlaying = !isPlaying;
+                StartTimelinePlayback();
+            }
+        }
 
         private void PlayBTN(object sender, RoutedEventArgs e)
         {
@@ -140,16 +167,45 @@ namespace WpfApp1
 
         // make a function if isplying make  Vertical_TimeLine move 5px/second using transform
 
-        private void AddMediaToCanvas(string path)
+        private void AddMediaToCanvas(string path, string fileType)
         {
+            Canvas Preview_canvas = new Canvas();
+            BitmapImage bitmap = new BitmapImage();
+            const double targetWidth = 200; // ← du bestämmer bredden
+            double targetHeight = 20;
 
-            // Create a new Canvas
-            Canvas Preview_canvas = new Canvas
+
+            double aspectRatio = 0;
+
+            if (fileType == ".jpg" || fileType == ".jpeg" || fileType == ".png")
             {
-                Width = 30,
-                Height = 40,
-                Background = Brushes.Black
-            };
+
+                // Ladda bitmap korrekt
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(path);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+
+                // Räkna aspect ratio
+                aspectRatio = (double)bitmap.PixelHeight / bitmap.PixelWidth;
+                targetHeight = targetWidth * aspectRatio;
+
+
+
+
+                Preview_canvas.Width = targetWidth;
+                Preview_canvas.Height = targetHeight;
+                Preview_canvas.Background = Brushes.Black;
+            }
+
+
+
+            Preview_canvas.Width = 200;
+            Preview_canvas.Height = 190;
+            Preview_canvas.Background = Brushes.Black;
+            // Skapa Canvas som följer bildens ratio
+
+
 
             // Set initial position of canvas
             Canvas.SetLeft(Preview_canvas, offsetX);
@@ -195,9 +251,67 @@ namespace WpfApp1
             };
             imported_media.Children.Add(canvasMedia);
 
+            Image image = null; // deklarera utanför if
+
+            MediaElement media = null;
+            if (fileType == ".jpg" || fileType == ".jpeg" || fileType == ".png")
+            {
+                // Original Image
+                 image = new Image
+                {
+                    Source = bitmap,
+                    Width = targetWidth,
+                    Height = targetHeight,
+                    Stretch = Stretch.Uniform
+                };
+                Preview_canvas.Children.Add(image);
+
+                // Second Image for other canvas
+                Image image2 = new Image
+                {
+                    Source = bitmap,
+                    Width = targetWidth,
+                    Height = targetHeight,
+                    Stretch = Stretch.Uniform
+                };
+                canvasMedia.Children.Add(image2);
+            }
+
+
+            else if (fileType == ".mp4" || fileType == ".avi" || fileType == ".wmv")
+            {
+                 media = new MediaElement
+                {
+                    Source = new Uri(path),
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Manual,
+                    Stretch = Stretch.Fill   // NOT Uniform!
+
+                 };
+
+                media.MediaOpened += (s, e) =>
+                {
 
 
 
+
+                    // Räkna aspect ratio
+                    aspectRatio = (double)media.NaturalVideoWidth / media.NaturalVideoHeight;
+                    targetHeight = targetWidth / aspectRatio;
+
+                    media.Width = targetWidth;
+                    media.Height = targetHeight;
+
+
+                    Preview_canvas.Height = targetHeight;
+
+                        
+
+                };
+                Preview_canvas.Children.Add(media); 
+
+                //hur stoppar man en video
+            }
 
 
             //Timeline Canvas
@@ -233,6 +347,8 @@ namespace WpfApp1
                 end = translate.X + canvas.Width,
                 height = Preview_canvas.Height,
                 width = Preview_canvas.Width,
+                media=media,
+                image=image,
 
             };
 
@@ -275,7 +391,7 @@ namespace WpfApp1
                 // Update stored info
                 info.start = translate.X;
                 info.Y = translate.Y;
-                info.end = translate.X+canvas.Width;
+                info.end = translate.X + canvas.Width;
 
             };
 
@@ -529,6 +645,8 @@ namespace WpfApp1
 
                 Vertical_line.Fill = Brushes.Transparent;
                 Horizontal_line.Fill = Brushes.Transparent;
+
+
             };
 
             // Handle mouse move on the parent (previewWindow or canvas)
@@ -554,16 +672,36 @@ namespace WpfApp1
                 newWidth = Math.Max(minSize, Math.Min(maxSize, newWidth));
 
                 // Maintain aspect ratio
-                double newHeight = newWidth / aspect;
-
+                // aspectRatio = H / W
+                double newHeight = newWidth / aspectRatio;
                 Preview_canvas.Width = newWidth;
                 Preview_canvas.Height = newHeight;
+
+
+
+
+
+
 
                 RecstartPos = currentPos;
 
                 // save values
                 info.width = newWidth;
                 info.height = newHeight;
+
+
+                if (image!=null)
+                {
+                    image.Width = Preview_canvas.Width;
+                    image.Height = Preview_canvas.Height;
+                }
+                else if (media!=null)
+                {
+                    media.Width = newWidth;
+                    media.Height = newHeight;
+
+                }
+
             };
 
 
@@ -573,6 +711,8 @@ namespace WpfApp1
             this.MouseLeftButtonUp += (s, me) =>
             {
                 Preview_isresizing = false;
+
+
             };
         }
 
@@ -691,7 +831,7 @@ namespace WpfApp1
                 double dx = Math.Abs(thisX - otherRight);
                 double dy = Math.Abs(thisY - otherY);
 
-                if (dx <= SNAP_DISTANCE && dy <= SNAP_DISTANCE/4)
+                if (dx <= SNAP_DISTANCE && dy <= SNAP_DISTANCE / 4)
                 {
                     double dist = Math.Sqrt(dx * dx + dy * dy);
                     if (dist < nearestDistance)
@@ -729,17 +869,27 @@ namespace WpfApp1
             StringBuilder debugText = new StringBuilder();
             foreach (var previewCanvas in Preview_canvases)
             {
-                if (previewCanvas.start< timelineX && timelineX<= previewCanvas.end)
+                if (previewCanvas.start < timelineX && timelineX <= previewCanvas.end)
                 {
                     previewCanvas.Canvas.Opacity = 1;
                     previewCanvas.Canvas.IsHitTestVisible = true;
+                    if (previewCanvas.media!=null)
+                    {
+                        previewCanvas.media.Play();
+                    }
                 }
                 else
                 {
                     previewCanvas.Canvas.Opacity = 0;
                     previewCanvas.Canvas.IsHitTestVisible = false;
+
+
+                    if (previewCanvas.media != null)
+                    {
+                        previewCanvas.media.Pause();
+                    }
                 }
-                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.width/ previewCanvas.height}");
+                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.width / previewCanvas.height}");
             }
 
             DebugLiv.Text = debugText.ToString();
