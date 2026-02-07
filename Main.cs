@@ -276,7 +276,7 @@ namespace WpfApp1
                 end = translate.X + canvas.Width,
                 height = Preview_canvas.Height,
                 width = Preview_canvas.Width,
-                Content=Content,
+                Content = Content,
 
             };
 
@@ -327,6 +327,19 @@ namespace WpfApp1
                 Content = image;
 
 
+
+                // imageBrush
+                Rectangle imageRect = new Rectangle();
+                imageRect.Fill = new ImageBrush(bitmap);
+
+                imageRect.SetBinding(WidthProperty,
+                    new Binding("Width") { Source = Preview_canvas });
+
+                imageRect.SetBinding(HeightProperty,
+                    new Binding("Height") { Source = Preview_canvas });
+
+                Preview_canvas.Children.Add(imageRect);
+
             }
 
 
@@ -363,11 +376,11 @@ namespace WpfApp1
 
                 info.Content = media;
                 Content = media;
+                Preview_canvas.Children.Add(Content);
 
                 //hur stoppar man en video
             }
 
-            Preview_canvas.Children.Add(Content);
 
             // Add it to the list
             Preview_canvases.Add(info);
@@ -710,7 +723,7 @@ namespace WpfApp1
 
                 Content.Width = Preview_canvas.Width;
                 Content.Height = Preview_canvas.Height;
-                
+
 
             };
 
