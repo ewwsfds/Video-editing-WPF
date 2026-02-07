@@ -104,7 +104,7 @@
                 <!-- EFFECTS PANEL -->
                 <Border Grid.Column="2" Background="#22111111" CornerRadius="8" Margin="2">
                     <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                        <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd"/>
+                        <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd" Foreground="white"/>
                     </ScrollViewer>
                 </Border>
             </Grid>
