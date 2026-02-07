@@ -22,6 +22,8 @@ namespace WpfApp1
     /// </summary>
     public partial class MainWindow : Window
     {
+        // Timeline canvas tile images
+        const double TileWidth = 80;
 
 
         //Timeline Canvas
@@ -330,7 +332,8 @@ namespace WpfApp1
 
                 // imageBrush
                 Rectangle imageRect = new Rectangle();
-                imageRect.Fill = new ImageBrush(bitmap);
+                ImageBrush brush = new ImageBrush(bitmap);
+                imageRect.Fill = brush;
 
                 imageRect.SetBinding(WidthProperty,
                     new Binding("Width") { Source = Preview_canvas });
@@ -339,6 +342,30 @@ namespace WpfApp1
                     new Binding("Height") { Source = Preview_canvas });
 
                 Preview_canvas.Children.Add(imageRect);
+
+
+                // ⭐ IMPORTANT PART (tiling)
+                ImageBrush brush_canvas = new ImageBrush(bitmap);
+
+                brush_canvas.TileMode = TileMode.Tile;
+                brush_canvas.ViewportUnits = BrushMappingMode.Absolute;
+                brush_canvas.Viewport = new Rect(0, 0, TileWidth, Preview_canvas.Height);
+                brush_canvas.Stretch = Stretch.Fill;
+
+
+
+                Rectangle tileRect = new Rectangle();
+
+
+                tileRect.SetBinding(WidthProperty,
+                    new Binding("Width") { Source = canvas });
+
+                tileRect.SetBinding(HeightProperty,
+                    new Binding("Height") { Source = canvas });
+
+
+                canvas.Children.Add(tileRect);
+                tileRect.Fill = brush_canvas;
 
             }
 
