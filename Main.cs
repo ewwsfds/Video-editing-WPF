@@ -1,7 +1,12 @@
+using Microsoft.VisualBasic.FileIO;
 using Microsoft.Win32;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -10,10 +15,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using System.Threading;
+
+
+using IOPath = System.IO.Path;
 
 namespace WpfApp1
 {
@@ -25,7 +33,9 @@ namespace WpfApp1
         // Timeline canvas tile images
         const double TileWidth = 80;
 
+        int pixel_per_second = 26;
 
+        int imageWidth;
         //Timeline Canvas
         double rowHeight = 40;
         bool fadestarted = false;
@@ -75,6 +85,8 @@ namespace WpfApp1
 
             // Apply it to the rectangle
             Vertical_TimeLine.RenderTransform = Vertical_Timeline_Transform;
+
+            imageWidth = pixel_per_second * 5;
         }
 
 
@@ -84,7 +96,7 @@ namespace WpfApp1
             var dialog = new OpenFileDialog
             {
                 Multiselect = true,
-                Filter = "Media Files|*.jpg;*.jpeg;*.png;*.mp4;*.mov;*.avi;*.wmv"
+                Filter = "Media Files|*.jpg;*.jpeg;*.png;*.mp4;*.mov;*.avi;*.wmv;*.mp3"
             };
 
             if (dialog.ShowDialog() != true)
@@ -93,10 +105,19 @@ namespace WpfApp1
             foreach (var file in dialog.FileNames)
             {
                 // Hämta filtypen
-                string fileType = System.IO.Path.GetExtension(file).ToLower(); // t.ex. ".jpg"
 
+                string fileType = IOPath.GetExtension(file).ToLower();
                 AddMediaToCanvas(file, fileType);
+
+
+
             }
+
+
+
+
+
+
         }
 
 
@@ -126,7 +147,7 @@ namespace WpfApp1
 
         private void StartTimelinePlayback()
         {
-            double speed = 25; // pixels per second
+            double speed = pixel_per_second; // pixels per second
 
             playTimer = new DispatcherTimer();
             playTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
@@ -165,6 +186,7 @@ namespace WpfApp1
         {
             isPlaying = !isPlaying;
             StartTimelinePlayback();
+
         }
 
 
@@ -177,7 +199,7 @@ namespace WpfApp1
             FrameworkElement Content = new FrameworkElement();
             Canvas Preview_canvas = new Canvas();
             BitmapImage bitmap = new BitmapImage();
-            const double targetWidth = 200; // ← du bestämmer bredden
+            double targetWidth = 200; // ← du bestämmer bredden
             double targetHeight = 20;
 
 
@@ -290,12 +312,14 @@ namespace WpfApp1
 
             if (fileType == ".jpg" || fileType == ".jpeg" || fileType == ".png")
             {
+               
 
                 // Ladda bitmap korrekt
                 bitmap.BeginInit();
                 bitmap.UriSource = new Uri(path);
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
                 bitmap.EndInit();
+
 
                 // Räkna aspect ratio
                 aspectRatio = (double)bitmap.PixelHeight / bitmap.PixelWidth;
@@ -304,8 +328,6 @@ namespace WpfApp1
                 Preview_canvas.Height = targetHeight;
 
                 info.AspectRatio = aspectRatio; // save it
-
-                Preview_canvas.Background = Brushes.Black;
 
                 // Original Image
                 Image image = new Image
@@ -349,8 +371,11 @@ namespace WpfApp1
 
                 brush_canvas.TileMode = TileMode.Tile;
                 brush_canvas.ViewportUnits = BrushMappingMode.Absolute;
-                brush_canvas.Viewport = new Rect(0, 0, TileWidth, Preview_canvas.Height);
+                brush_canvas.Viewport = new Rect(0, 0, TileWidth, (int)canvas.Height);
                 brush_canvas.Stretch = Stretch.Fill;
+
+
+
 
 
 
@@ -366,7 +391,27 @@ namespace WpfApp1
 
                 canvas.Children.Add(tileRect);
                 tileRect.Fill = brush_canvas;
+                Canvas.SetZIndex(tileRect, -99);
 
+
+                // Green outline rectangle
+                Rectangle outline = new Rectangle
+                {
+                    Stroke = Brushes.LimeGreen,      // the outline color
+                    StrokeThickness = 3,             // thickness of the border
+                    Fill = Brushes.Transparent       // no fill
+                };
+
+                // Bind it to canvas size
+                outline.SetBinding(WidthProperty, new Binding("Width") { Source = canvas });
+                outline.SetBinding(HeightProperty, new Binding("Height") { Source = canvas });
+
+                // Make sure it appears above thumbnails
+                Canvas.SetZIndex(outline, -1); // above tileRect which is -99
+
+                canvas.Children.Add(outline);
+
+                canvas.Width = imageWidth;
             }
 
 
@@ -399,14 +444,56 @@ namespace WpfApp1
 
 
 
+
+                    // ✅ Get total duration in seconds
+                    if (media.NaturalDuration.HasTimeSpan)
+                    {
+                        TimeSpan duration = media.NaturalDuration.TimeSpan;
+                        double totalSeconds = duration.TotalSeconds;
+
+                        canvas.Width = totalSeconds * pixel_per_second;
+                    }
                 };
 
                 info.Content = media;
                 Content = media;
                 Preview_canvas.Children.Add(Content);
 
-                //hur stoppar man en video
-            }
+                //apply image tiles
+
+                // create temp folder for THIS video
+                string tempFolder = IOPath.Combine(IOPath.GetTempPath(), "VideoFrames_" + Guid.NewGuid());
+                Directory.CreateDirectory(tempFolder);
+
+                // run extraction
+                ExtractFramesAsync(path, tempFolder, canvas);
+
+
+
+
+
+                // Red outline rectangle
+                Rectangle outline = new Rectangle
+                {
+                    Stroke = Brushes.Red,      // the outline color
+                    StrokeThickness = 3,             // thickness of the border
+                    Fill = Brushes.Transparent       // no fill
+                };
+
+                // Bind it to canvas size
+                outline.SetBinding(WidthProperty, new Binding("Width") { Source = canvas });
+                outline.SetBinding(HeightProperty, new Binding("Height") { Source = canvas });
+
+                // Make sure it appears above thumbnails
+                Canvas.SetZIndex(outline, -1); // above tileRect which is -99
+
+                canvas.Children.Add(outline);
+
+
+
+            };
+
+           
 
 
             // Add it to the list
@@ -452,10 +539,7 @@ namespace WpfApp1
 
             };
 
-            if (canvases.Count % 2 == 0)
-            {
-                canvas.Background = Brushes.Green;
-            }
+
 
 
 
@@ -597,7 +681,57 @@ namespace WpfApp1
 
 
 
+            if (fileType == ".mp3")
+            {
+                // create temp folder for THIS video
+                string tempFolder = IOPath.Combine(IOPath.GetTempPath(), "SoundFrames_" + Guid.NewGuid());
+                Directory.CreateDirectory(tempFolder);
 
+
+
+
+
+                // Use a MediaElement to get duration
+                MediaElement audio = new MediaElement
+                {
+                    Source = new Uri(path),
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Manual,
+                };
+
+                audio.MediaOpened += (s, e) =>
+                {
+                    if (audio.NaturalDuration.HasTimeSpan)
+                    {
+                        TimeSpan duration = audio.NaturalDuration.TimeSpan;
+                        double totalSeconds = duration.TotalSeconds;
+                        canvas.Width = totalSeconds*pixel_per_second;
+
+                        // Now you can use totalSeconds for frame/tile calculations
+                    }
+                };
+
+                // Must load the media
+                audio.Loaded += (s, e) => audio.Play(); // triggers MediaOpened
+
+                info.Content = audio;
+                Content = audio;
+                Preview_canvas.Children.Add(Content);
+
+
+
+
+                int Frames = 90;
+                ExtractSound(path, tempFolder, canvas, Frames);
+
+                Preview_canvas.Children.Clear();
+
+                canvas.Background = Brushes.Purple;
+
+                previewCanvas.Children.Remove(Preview_canvas);
+                return;
+
+            };
 
 
 
@@ -764,7 +898,199 @@ namespace WpfApp1
 
 
             };
+
+
+
+
+
+
+
+            // apply image tile for videos
         }
+
+
+        private async Task ExtractSound(string videoPath, string tempFolder, Canvas canvas, int Frames)
+        {
+            const int tileWidth = 2; // thin bars
+            int height = (int)canvas.Height;
+
+            string rawPath = IOPath.Combine(tempFolder, "audio.raw");
+
+            // ---------- 1. EXTRACT RAW AUDIO ----------
+            await Task.Run(() =>
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments =
+                        $"-i \"{videoPath}\" -ac 1 -ar 8000 -f s16le \"{rawPath}\" -hide_banner -loglevel error",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (Process p = Process.Start(psi))
+                    p.WaitForExit();
+            });
+
+            if (!File.Exists(rawPath))
+                return;
+
+            // ---------- 2. READ SAMPLES ----------
+            byte[] bytes = File.ReadAllBytes(rawPath);
+            short[] samples = new short[bytes.Length / 2];
+            Buffer.BlockCopy(bytes, 0, samples, 0, bytes.Length);
+
+            int samplesPerFrame = samples.Length / Frames;
+            if (samplesPerFrame <= 0) return;
+
+            double[] peaks = new double[Frames];
+
+            // ---------- 3. CALCULATE PEAK PER FRAME ----------
+            for (int f = 0; f < Frames; f++)
+            {
+                int start = f * samplesPerFrame;
+                int end = Math.Min(start + samplesPerFrame, samples.Length);
+
+                short max = 0;
+
+                for (int i = start; i < end; i++)
+                {
+                    short val = (short)Math.Abs(samples[i]);
+                    if (val > max) max = val;
+                }
+
+                peaks[f] = max / 32768.0; // normalize 0..1
+            }
+
+            // ---------- 4. DRAW WAVEFORM BITMAP ----------
+            DrawingVisual dv = new DrawingVisual();
+
+            using (DrawingContext dc = dv.RenderOpen())
+            {
+                Pen pen = new Pen(Brushes.White, 1);
+
+                double centerY = height / 2.0;
+
+                for (int i = 0; i < Frames; i++)
+                {
+                    double amp = peaks[i] * centerY;
+
+                    double x = i * tileWidth;
+
+                    dc.DrawLine(
+                        pen,
+                        new Point(x, centerY - amp),
+                        new Point(x, centerY + amp));
+                }
+            }
+
+            RenderTargetBitmap bmp = new RenderTargetBitmap(
+                Frames * tileWidth,
+                height,
+                96, 96,
+                PixelFormats.Pbgra32);
+
+            bmp.Render(dv);
+
+            // ---------- 5. BRUSH TILE (same system as your thumbnails) ----------
+            ImageBrush brush = new ImageBrush(bmp)
+            {
+                Stretch = Stretch.Fill
+            };
+
+            Rectangle rect = new Rectangle();
+
+            rect.SetBinding(WidthProperty,
+                new Binding("Width") { Source = canvas });
+
+            rect.SetBinding(HeightProperty,
+                new Binding("Height") { Source = canvas });
+
+            rect.Fill = brush;
+
+            Canvas.SetZIndex(rect, -98); // behind thumbnails
+
+            canvas.Children.Add(rect);
+        }
+
+
+        private async Task ExtractFramesAsync(string videoPath, string tempFolder, Canvas canvas)
+        {
+            const int TileWidth = 90;
+
+            await Task.Run(() =>
+            {
+                string outputPattern = IOPath.Combine(tempFolder, "frame_%04d.png");
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-i \"{videoPath}\" -vf fps=1/5 \"{outputPattern}\" -hide_banner -loglevel error",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (Process proc = Process.Start(psi))
+                    proc.WaitForExit();
+            });
+
+            // ---------- UI THREAD ----------
+
+            string[] files = Directory.GetFiles(tempFolder, "*.png");
+            if (files.Length == 0) return;
+
+            Array.Sort(files); // important: frame order
+
+            int tileHeight = (int)canvas.Height;
+
+            // ===== BUILD FILMSTRIP BITMAP =====
+            DrawingVisual dv = new DrawingVisual();
+
+            using (DrawingContext dc = dv.RenderOpen())
+            {
+                for (int i = 0; i < files.Length; i++)
+                {
+                    BitmapImage bmp = new BitmapImage(new Uri(files[i]));
+
+                    Rect r = new Rect(i * TileWidth, 0, TileWidth, tileHeight);
+
+                    dc.DrawImage(bmp, r);
+                }
+            }
+
+            RenderTargetBitmap filmStrip = new RenderTargetBitmap(
+                TileWidth * files.Length,
+                tileHeight,
+                96, 96,
+                PixelFormats.Pbgra32);
+
+            filmStrip.Render(dv);
+
+            // ===== CREATE TILED BRUSH (same as your image version) =====
+            ImageBrush brush_canvas = new ImageBrush(filmStrip);
+
+            brush_canvas.TileMode = TileMode.Tile;
+            brush_canvas.ViewportUnits = BrushMappingMode.Absolute;
+            brush_canvas.Viewport = new Rect(0, 0, TileWidth, tileHeight);
+            brush_canvas.Stretch = Stretch.Fill;
+
+            // ===== SINGLE RECTANGLE ONLY =====
+            Rectangle tileRect = new Rectangle();
+
+            tileRect.SetBinding(WidthProperty,
+                new Binding("Width") { Source = canvas });
+
+            tileRect.SetBinding(HeightProperty,
+                new Binding("Height") { Source = canvas });
+
+            tileRect.Fill = brush_canvas;
+            canvas.Children.Add(tileRect);
+            Canvas.SetZIndex(tileRect, -99);
+
+        }
+
+
+
 
         private void RowSnap(TranslateTransform translate, Canvas canvas)
         {
