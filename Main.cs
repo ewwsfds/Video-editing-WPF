@@ -30,6 +30,19 @@ namespace WpfApp1
     /// </summary>
     public partial class MainWindow : Window
     {
+
+        //
+        private double rectangleWidth = 750;
+
+        // use double (WPF uses double everywhere)
+        private double zoomLevel = 1.0;
+
+        private  double MinZoom = 0.125;
+        private  double MaxZoom = 8;
+
+
+
+
         // Timeline canvas tile images
         const double TileWidth = 80;
 
@@ -87,6 +100,17 @@ namespace WpfApp1
             Vertical_TimeLine.RenderTransform = Vertical_Timeline_Transform;
 
             imageWidth = pixel_per_second * 5;
+
+
+
+            // Safe: DrawTimeline only after Window is ready
+            Loaded += (_, __) =>
+            {
+                DrawTimeline();
+                ZoomSlider.ValueChanged += ZoomSlider_ValueChanged; // attach AFTER Loaded
+            };
+
+
         }
 
 
@@ -312,7 +336,7 @@ namespace WpfApp1
 
             if (fileType == ".jpg" || fileType == ".jpeg" || fileType == ".png")
             {
-               
+
 
                 // Ladda bitmap korrekt
                 bitmap.BeginInit();
@@ -491,9 +515,10 @@ namespace WpfApp1
 
 
 
-            };
+            }
+            ;
 
-           
+
 
 
             // Add it to the list
@@ -705,7 +730,7 @@ namespace WpfApp1
                     {
                         TimeSpan duration = audio.NaturalDuration.TimeSpan;
                         double totalSeconds = duration.TotalSeconds;
-                        canvas.Width = totalSeconds*pixel_per_second;
+                        canvas.Width = totalSeconds * pixel_per_second;
 
                         // Now you can use totalSeconds for frame/tile calculations
                     }
@@ -731,7 +756,8 @@ namespace WpfApp1
                 previewCanvas.Children.Remove(Preview_canvas);
                 return;
 
-            };
+            }
+            ;
 
 
 
@@ -1270,10 +1296,64 @@ namespace WpfApp1
         }
 
 
+        private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+
+            int step = (int)ZoomSlider.Value;
+
+            // convert step → zoom
+            zoomLevel = Math.Pow(2, step - 3);
+
+            DrawTimeline();
+        }
 
 
+        private void DrawTimeline()
+        {
+            if (timeShower == null) return; // prevents crash if called too early
 
+            timeShower.Children.Clear();
+            const double pxPerSecond = 50;     // ALWAYS fixed
+            const double bigTickSeconds = 5;   // number every 5 seconds
 
+            for (double x = 0; x <= rectangleWidth; x += pxPerSecond)
+            {
+                bool big = ((x / pxPerSecond) % bigTickSeconds) == 0;
+
+                Line line = new Line
+                {
+                    X1 = x,
+                    Y1 = 0,
+                    X2 = x,
+                    Y2 = big ? 20 : 10,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1
+                };
+
+                timeShower.Children.Add(line);
+
+                if (big)
+                {
+                    // pixel seconds (without zoom)
+                    double baseSeconds = (x / pxPerSecond);
+
+                    // apply zoom ONLY to time meaning
+                    double shownSeconds = baseSeconds / zoomLevel;
+
+                    TextBlock txt = new TextBlock
+                    {
+                        Text = $"{shownSeconds:0.##}s",
+                        Foreground = Brushes.White,
+                        FontSize = 12
+                    };
+
+                    Canvas.SetLeft(txt, x + 2);
+                    Canvas.SetTop(txt, 20);
+
+                    timeShower.Children.Add(txt);
+                }
+            }
+        }
 
 
     }
