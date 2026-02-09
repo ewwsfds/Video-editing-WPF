@@ -37,8 +37,8 @@ namespace WpfApp1
         // use double (WPF uses double everywhere)
         private double zoomLevel = 1.0;
 
-        private  double MinZoom = 0.125;
-        private  double MaxZoom = 8;
+        private double MinZoom = 0.125;
+        private double MaxZoom = 8;
 
 
 
@@ -69,7 +69,10 @@ namespace WpfApp1
 
         public class PreviewCanvasInfo
         {
+            public Canvas previewcanvas { get; set; }
             public Canvas Canvas { get; set; }
+            public Rectangle rectRight { get; set; }
+
             public double start { get; set; }
             public double Y { get; set; }
             public double end { get; set; }
@@ -80,6 +83,18 @@ namespace WpfApp1
 
             // Store aspect ratio H/W
             public double AspectRatio { get; set; } = 1;
+
+
+            public double original_canvasWidth { get; set; }
+
+
+            public double original_translateX { get; set; }
+
+
+            public double leftShrinkAmount { get; set; }
+            public double rightShrinkAmount { get; set; }
+
+
 
         }
 
@@ -313,18 +328,30 @@ namespace WpfApp1
             TranslateTransform translate = new TranslateTransform();
             canvas.RenderTransform = translate;
 
-
+            Rectangle rectRight = new Rectangle
+            {
+                Width = 5,
+                Height = 40,
+                Fill = Brushes.Blue,
+                Cursor = Cursors.SizeWE
+            };
 
             // Wrap it into your custom class
             PreviewCanvasInfo info = new PreviewCanvasInfo
             {
-                Canvas = Preview_canvas,
+                previewcanvas = Preview_canvas,
+                Canvas = canvas,
                 start = translate.X,
                 Y = translate.Y,
                 end = translate.X + canvas.Width,
                 height = Preview_canvas.Height,
                 width = Preview_canvas.Width,
                 Content = Content,
+                original_canvasWidth = canvas.Width,
+                original_translateX = 0,
+                leftShrinkAmount=0,
+                rightShrinkAmount=0,
+                rectRight = rectRight,
 
             };
 
@@ -548,6 +575,8 @@ namespace WpfApp1
 
 
                 highlightRowShower(canvas, currentPos);
+                DebugLiv.Text = $"Zoom= {zoomLevel}, tranlateX={translate.X}, leftShrinkAmount= {info.leftShrinkAmount} , Wodth={canvas.Width},\n translate={translate.X}";
+
             };
 
             canvas.MouseLeftButtonUp += (s, me) =>
@@ -579,13 +608,7 @@ namespace WpfApp1
                 Cursor = Cursors.SizeWE
             };
 
-            Rectangle rectRight = new Rectangle
-            {
-                Width = 5,
-                Height = 40,
-                Fill = Brushes.Blue,
-                Cursor = Cursors.SizeWE
-            };
+
 
             canvas.Children.Add(rectLeft);
             canvas.Children.Add(rectRight);
@@ -603,6 +626,7 @@ namespace WpfApp1
 
             double leftShrinkAmount = 0;
             double rightShrinkAmount = 0;
+
 
             rectLeft.MouseLeftButtonDown += (s, me2) =>
             {
@@ -638,10 +662,12 @@ namespace WpfApp1
 
                 if (Right_isDragging)
                 {
+                    rightShrinkAmount = info.rightShrinkAmount;
                     if (dx > 0 && rightShrinkAmount < 0) // trying to grow right side, but limit so that it doesnt grow past original
                     {
                         canvas.Width += dx;
                         rightShrinkAmount += dx;
+                        info.rightShrinkAmount = rightShrinkAmount;
 
                     }
 
@@ -649,12 +675,14 @@ namespace WpfApp1
                     {
                         canvas.Width += dx;
                         rightShrinkAmount += dx;
+                        info.rightShrinkAmount = rightShrinkAmount;
                     }
 
 
                 }
                 else if (Left_isDragging)
                 {
+                     leftShrinkAmount= info.leftShrinkAmount;
                     double newWidth = canvas.Width - dx;
                     if (dx < 0 && leftShrinkAmount < 0) // trying to grow left side, but limit so that it doesnt grow past original
                     {
@@ -662,6 +690,7 @@ namespace WpfApp1
                         canvas.Width = newWidth;
 
                         leftShrinkAmount -= dx;
+                        info.leftShrinkAmount = leftShrinkAmount;
 
                     }
 
@@ -670,7 +699,11 @@ namespace WpfApp1
                         translate.X += dx;
                         canvas.Width = newWidth;
                         leftShrinkAmount -= dx;
+                        info.leftShrinkAmount = leftShrinkAmount;
                     }
+
+
+                    DebugLiv.Text = $"Zoom= {zoomLevel}, tranlateX={translate.X}, leftShrinkAmount= {info.leftShrinkAmount} , \n Wodth={canvas.Width}, translate={translate.X}";
 
                 }
 
@@ -1276,8 +1309,8 @@ namespace WpfApp1
                 bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
 
                 // Set canvas visibility
-                previewCanvas.Canvas.Opacity = isVisible ? 1 : 0;
-                previewCanvas.Canvas.IsHitTestVisible = isVisible;
+                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
+                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
 
                 // Handle media playback if it's a MediaElement
                 if (previewCanvas.Content is MediaElement media)
@@ -1289,24 +1322,26 @@ namespace WpfApp1
                 }
 
                 // Optionally, you can still debug width/height/aspect
-                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.AspectRatio}");
+                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.AspectRatio}, Zoom= {zoomLevel}");
             }
 
             DebugLiv.Text = debugText.ToString();
         }
 
 
+        // Allowed zoom levels
+        double[] allowedValues = new double[] { 0.125, 0.25, 0.5, 1, 2, 4, 8 };
+
+        double lastZoomValue=1;
         private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            int step = (int)ZoomSlider.Value; // slider index
+            zoomLevel = allowedValues[step];
 
-            int step = (int)ZoomSlider.Value;
 
-            // convert step → zoom
-            zoomLevel = Math.Pow(2, step - 3);
 
             DrawTimeline();
         }
-
 
         private void DrawTimeline()
         {
@@ -1353,8 +1388,44 @@ namespace WpfApp1
                     timeShower.Children.Add(txt);
                 }
             }
+            DebugLiv.Text = $"Zoom= {zoomLevel}";
+
+
+            if (canvases == null || canvases.Count == 0)
+                            return;
+
+
+
+
+                double scaleFactor = zoomLevel / lastZoomValue;
+
+
+                foreach (var info in Preview_canvases)
+                {
+                    // Use transform for other canvases
+                    TranslateTransform translate = info.Canvas.RenderTransform as TranslateTransform;
+
+
+                    info.Canvas.Width *= scaleFactor;
+
+
+                      // Scale current X relative to last zoom
+                      translate.X *= scaleFactor;
+                      info.leftShrinkAmount *= scaleFactor;
+                      info.rightShrinkAmount *= scaleFactor;
+
+                    DebugLiv.Text = $"Zoom= {zoomLevel}, Width={info.Canvas.Width}, leftShrinkAmount= {info.leftShrinkAmount}, \n translate={translate.X} ";
+
+                    // keep right handle on edge
+                    Canvas.SetLeft(info.rectRight, info.Canvas.Width - info.rectRight.Width);
+
+            }
+
+                 lastZoomValue = zoomLevel;
+
+
+
+
         }
-
-
     }
 }
