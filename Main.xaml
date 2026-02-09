@@ -141,13 +141,15 @@
                     </StackPanel>
 
                     <!-- RIGHT EDGE -->
-                    <Slider Grid.Column="2" HorizontalAlignment="Right" Width="120" VerticalAlignment="Center" Margin="10" Foreground="Red"/>
+                    <Slider x:Name="ZoomSlider" Width="200" Height="40" Grid.Column="2"  Minimum="0" Maximum="6" TickFrequency="1" Value="3"  IsSnapToTickEnabled="True" ValueChanged="ZoomSlider_ValueChanged" Margin="31,10,32,-20"/>
+
+
                 </Grid>
 
                 <!-- Timeline -->
                 <Border Grid.Row="1" Background="#AA111111" CornerRadius="8" Margin="5">
                     <Canvas x:Name="timeline" PreviewMouseLeftButtonDown="Timeline_Click" Background="Transparent">
-                        <Rectangle Name="timeShower" Fill="#FF3A3A40" Height="20" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"  HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                        <Canvas Name="timeShower" Background="#FF3A3A40" Height="20" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"  HorizontalAlignment="Center" VerticalAlignment="Top"/>
                         <Rectangle Width="2" Fill="Red" Name="Vertical_TimeLine" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                         <Rectangle Name="rowShower" Fill="#FF3A3A40" Height="40" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}" RadiusX="5" RadiusY="5" Canvas.Left="2" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
