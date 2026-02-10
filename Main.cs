@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -104,6 +105,8 @@ namespace WpfApp1
         public MainWindow()
         {
             InitializeComponent();
+
+
             rowShower.Fill = Brushes.Transparent;
 
             Canvas.SetZIndex(Vertical_TimeLine, 1000); // ensures it's always on top
@@ -125,10 +128,25 @@ namespace WpfApp1
                 ZoomSlider.ValueChanged += ZoomSlider_ValueChanged; // attach AFTER Loaded
             };
 
-
+            // This will fire every time user clicks maximize/restore/minimize
+            this.SizeChanged += MainWindow_SizeChanged;
         }
 
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // User just changed/messed with the window size
+            DebugLiv.Text=($"Window size changed: {e.PreviousSize.Width}x{e.PreviousSize.Height} -> {e.NewSize.Width}x{e.NewSize.Height}");
 
+            previewCanvas.Width = canvasContainer.ActualWidth / 2;
+            previewCanvas.Height = canvasContainer.ActualHeight / 3;
+
+            Canvas.SetLeft(previewCanvas, (canvasContainer.ActualWidth - previewCanvas.Width) / 2);
+            Canvas.SetTop(previewCanvas, (canvasContainer.ActualHeight - previewCanvas.Height) / 2);
+
+
+
+            // Run your code here
+        }
 
         private void import_media(object sender, RoutedEventArgs e)
         {
@@ -235,8 +253,41 @@ namespace WpfApp1
 
         private void AddMediaToCanvas(string path, string fileType)
         {
+
+
+
             FrameworkElement Content = new FrameworkElement();
+
             Canvas Preview_canvas = new Canvas();
+
+
+            // Create the rectangle
+            Rectangle borderRect = new Rectangle
+            {
+                Stroke = Brushes.White, // Blue border
+                StrokeThickness = 2, // Thin
+                Fill = Brushes.Transparent,
+                StrokeDashArray = new DoubleCollection() { 4, 2 } // 4 units dash, 2 units gap
+            };
+
+            // Bind rectangle size to canvas size
+            borderRect.SetBinding(Rectangle.WidthProperty, new Binding("ActualWidth") { Source = Preview_canvas });
+            borderRect.SetBinding(Rectangle.HeightProperty, new Binding("ActualHeight") { Source = Preview_canvas });
+
+            // Add rectangle as child to canvas
+            canvasContainer.Children.Add(borderRect);
+
+
+
+
+            Canvas.SetZIndex(borderRect, 99);
+
+
+
+
+
+
+
             BitmapImage bitmap = new BitmapImage();
             double targetWidth = 200; // ← du bestämmer bredden
             double targetHeight = 20;
@@ -254,7 +305,6 @@ namespace WpfApp1
 
             Preview_canvas.Width = 200;
             Preview_canvas.Height = 190;
-            Preview_canvas.Background = Brushes.Black;
             // Skapa Canvas som följer bildens ratio
 
 
@@ -278,6 +328,13 @@ namespace WpfApp1
 
             Preview_canvas.Children.Add(rect);
             previewCanvas.Children.Add(Preview_canvas);
+
+            // Transform Preview_canvas position relative to the Grid (canvasContainer)
+            Point pos = Preview_canvas.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
+
+            Canvas.SetLeft(borderRect, pos.X);
+            Canvas.SetTop(borderRect, pos.Y);
+
 
             // Prepare dragging variables
             bool Preview_isDragging = false;
@@ -349,8 +406,8 @@ namespace WpfApp1
                 Content = Content,
                 original_canvasWidth = canvas.Width,
                 original_translateX = 0,
-                leftShrinkAmount=0,
-                rightShrinkAmount=0,
+                leftShrinkAmount = 0,
+                rightShrinkAmount = 0,
                 rectRight = rectRight,
 
             };
@@ -590,6 +647,8 @@ namespace WpfApp1
                 info.start = translate.X;
                 info.Y = translate.Y;
                 info.end = translate.X + canvas.Width;
+                PreviewChecker();
+
 
             };
 
@@ -682,7 +741,7 @@ namespace WpfApp1
                 }
                 else if (Left_isDragging)
                 {
-                     leftShrinkAmount= info.leftShrinkAmount;
+                    leftShrinkAmount = info.leftShrinkAmount;
                     double newWidth = canvas.Width - dx;
                     if (dx < 0 && leftShrinkAmount < 0) // trying to grow left side, but limit so that it doesnt grow past original
                     {
@@ -828,6 +887,17 @@ namespace WpfApp1
 
             };
 
+            TranslateTransform Preview_canvas_transform = new TranslateTransform();
+            Preview_canvas.RenderTransform = Preview_canvas_transform;
+
+
+            TranslateTransform borderRect_transform = new TranslateTransform();
+            borderRect.RenderTransform = borderRect_transform;
+
+
+
+
+
             Preview_canvas.MouseMove += (s, me) =>
             {
                 if (!Preview_isDragging) return;
@@ -837,29 +907,27 @@ namespace WpfApp1
                 double dx = currentPos.X - Preview_startPos.X;
                 double dy = currentPos.Y - Preview_startPos.Y;
 
-                // Current position
-                double left = Canvas.GetLeft(Preview_canvas);
-                double top = Canvas.GetTop(Preview_canvas);
+                // Move with transform
+                Preview_canvas_transform.X += dx;
+                Preview_canvas_transform.Y += dy;
 
-                // Move normally
-                left += dx;
-                top += dy;
-
-                // --- center of preview canvas ---
-                double canvasCenterX = left + Preview_canvas.Width / 2;
-                double canvasCenterY = top + Preview_canvas.Height / 2;
+                // --- center of preview canvas (absolute) ---
+                Point canvasTopLeft = Preview_canvas.TransformToAncestor(previewCanvas).Transform(new Point(0, 0));
+                double canvasCenterX = canvasTopLeft.X + Preview_canvas.Width / 2;
+                double canvasCenterY = canvasTopLeft.Y + Preview_canvas.Height / 2;
 
                 // --- center lines ---
                 double verticalLineX = previewCanvas.ActualWidth / 2;
                 double horizontalLineY = previewCanvas.ActualHeight / 2;
 
                 const double snapDistance = 25;
-
                 double MsnapDistance = Preview_canvas.ActualHeight * 0.35;
+
                 // --- Vertical snap ---
-                if (Math.Abs(canvasCenterX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
+                if (Math.Abs(canvasCenterX - verticalLineX) <= snapDistance &&
+                    Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
                 {
-                    left = verticalLineX - Preview_canvas.Width / 2;
+                    Preview_canvas_transform.X += verticalLineX - canvasCenterX;
                     Vertical_line.Fill = Brushes.Red;
                 }
                 else
@@ -868,9 +936,10 @@ namespace WpfApp1
                 }
 
                 // --- Horizontal snap ---
-                if (Math.Abs(canvasCenterY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
+                if (Math.Abs(canvasCenterY - horizontalLineY) <= snapDistance &&
+                    Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
                 {
-                    top = horizontalLineY - Preview_canvas.Height / 2;
+                    Preview_canvas_transform.Y += horizontalLineY - canvasCenterY;
                     Horizontal_line.Fill = Brushes.Red;
                 }
                 else
@@ -878,12 +947,39 @@ namespace WpfApp1
                     Horizontal_line.Fill = Brushes.Transparent;
                 }
 
-                // Apply position
-                Canvas.SetLeft(Preview_canvas, left);
-                Canvas.SetTop(Preview_canvas, top);
+                // Update borderRect to follow Preview_canvas
+                Point pos = Preview_canvas.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
+                Canvas.SetLeft(borderRect, pos.X);
+                Canvas.SetTop(borderRect, pos.Y);
+
+                // Make player follow bot in absolute MainGrid coordinates
+                Point botAbsolute = borderRect.TransformToAncestor(MainGrid).Transform(new Point(0, 0));
+                Point playerParent = Preview_canvas.TransformToAncestor(MainGrid).Transform(new Point(0, 0));
+
+                // Calculate the needed local TranslateTransform to match absolute position
+                borderRect_transform.X += botAbsolute.X - playerParent.X;
+                borderRect_transform.Y += botAbsolute.Y - playerParent.Y;
+
 
                 Preview_startPos = currentPos;
+
+
+
+
+
+                DebugLiv.Text = $"borderRect= {Canvas.GetLeft(borderRect)}, Preview_canvas{Canvas.GetLeft(Preview_canvas)}";
+
+
+                if (Canvas.GetLeft(Preview_canvas) <= 0)
+                    borderRect.IsHitTestVisible = true;
+                else borderRect.IsHitTestVisible = false;
+
+
             };
+
+
+
+
 
 
 
@@ -963,8 +1059,59 @@ namespace WpfApp1
 
 
 
+            bool borderRect_isDragging = false;
+            Point startPos_borderRect;
 
-            // apply image tile for videos
+
+
+
+            borderRect.MouseLeftButtonDown += (s, me) =>
+            {
+                borderRect_isDragging = true;
+                
+                startPos_borderRect = me.GetPosition(canvasContainer);
+                borderRect.CaptureMouse();
+
+
+            };
+
+            borderRect.MouseMove += (s, me) =>
+            {
+                if (!borderRect_isDragging) return;
+
+                Point currentPos = me.GetPosition(canvasContainer);
+
+                double dx = currentPos.X - startPos_borderRect.X;
+                double dy = currentPos.Y - startPos_borderRect.Y;
+
+
+
+                borderRect_transform.X += dx;
+                borderRect_transform.Y += dy;
+
+                startPos_borderRect = currentPos;
+
+
+
+
+
+                // Make player follow bot in absolute MainGrid coordinates
+                Point borderRect_Absolute_pos = borderRect.TransformToAncestor(MainGrid).Transform(new Point(0, 0));
+                Point preview_canvas_Absolute_pos = Preview_canvas.TransformToAncestor(MainGrid).Transform(new Point(0, 0));
+
+                // Calculate the needed local TranslateTransform to match absolute position
+                Preview_canvas_transform.X += borderRect_Absolute_pos.X - preview_canvas_Absolute_pos.X;
+                Preview_canvas_transform.Y += borderRect_Absolute_pos.Y - preview_canvas_Absolute_pos.Y;
+
+            };
+
+
+            borderRect.MouseUp += (s, me) =>
+            {
+                borderRect_isDragging = false;
+                borderRect.ReleaseMouseCapture();
+            };
+
         }
 
 
@@ -1298,36 +1445,7 @@ namespace WpfApp1
 
 
 
-        private void PreviewChecker()
-        {
-            double timelineX = Vertical_Timeline_Transform.X;
-            StringBuilder debugText = new StringBuilder();
-
-            foreach (var previewCanvas in Preview_canvases)
-            {
-                // Check if timeline is within the canvas start/end
-                bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
-
-                // Set canvas visibility
-                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
-                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
-
-                // Handle media playback if it's a MediaElement
-                if (previewCanvas.Content is MediaElement media)
-                {
-                    if (isVisible)
-                        media.Play();
-                    else
-                        media.Pause();
-                }
-
-                // Optionally, you can still debug width/height/aspect
-                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.AspectRatio}, Zoom= {zoomLevel}");
-            }
-
-            DebugLiv.Text = debugText.ToString();
-        }
-
+     
 
         // Allowed zoom levels
         double[] allowedValues = new double[] { 0.125, 0.25, 0.5, 1, 2, 4, 8 };
@@ -1341,6 +1459,8 @@ namespace WpfApp1
 
 
             DrawTimeline();
+            PreviewChecker();
+
         }
 
         private void DrawTimeline()
@@ -1419,13 +1539,68 @@ namespace WpfApp1
                     // keep right handle on edge
                     Canvas.SetLeft(info.rectRight, info.Canvas.Width - info.rectRight.Width);
 
+                info.start = translate.X;
+                info.end = translate.X+ info.Canvas.Width;
+
+
             }
 
-                 lastZoomValue = zoomLevel;
+            lastZoomValue = zoomLevel;
 
 
 
 
         }
+
+
+
+
+
+
+
+        private void PreviewChecker()
+        {
+            double timelineX = Vertical_Timeline_Transform.X;
+            StringBuilder debugText = new StringBuilder();
+
+            foreach (var previewCanvas in Preview_canvases)
+            {
+                // Check if timeline is within the canvas start/end
+                bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
+
+                // Set canvas visibility
+                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
+                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
+
+                // Handle media playback if it's a MediaElement
+                if (previewCanvas.Content is MediaElement media)
+                {
+                    if (isVisible)
+                        media.Play();
+                    else
+                        media.Pause();
+                }
+
+                // Optionally, you can still debug width/height/aspect
+                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.AspectRatio}, Zoom= {zoomLevel}");
+            }
+
+            DebugLiv.Text = debugText.ToString();
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 }
