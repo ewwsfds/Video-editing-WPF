@@ -10,7 +10,7 @@
         Title="MainWindow" Height="450" Width="800"
         Background="#FF1E1E1E">
 
-    <Grid>
+    <Grid Name="MainGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="1.5*"/>
             <RowDefinition Height="*"/>
@@ -90,14 +90,17 @@
                             </Grid>
                         </Border>
 
-                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                            <Canvas Name="previewCanvas" Background="#AA111111" Margin="156,41,155,41">
+                        <Canvas  Grid.Row="1" Name="canvasContainer">
+
+                            <Canvas Name="previewCanvas" Background="#AA111111" ClipToBounds="True">
                                 <Grid Name="preview_Lines" Background="Transparent" Width="{Binding ActualWidth, ElementName=previewCanvas}" Height="{Binding ActualHeight, ElementName=previewCanvas}">
                                     <Rectangle Height="2" Fill="Red" HorizontalAlignment="Stretch" VerticalAlignment="Center" Name="Horizontal_line"/>
                                     <Rectangle Width="2" Fill="Red" VerticalAlignment="Stretch" HorizontalAlignment="Center" Name="Vertical_line"/>
                                 </Grid>
                             </Canvas>
-                        </ScrollViewer>
+
+
+                        </Canvas>
                     </Grid>
                 </Border>
 
