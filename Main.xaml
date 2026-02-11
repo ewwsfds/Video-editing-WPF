@@ -93,20 +93,76 @@
                         </Border>
 
                         <Canvas  Grid.Row="1" Name="canvasContainer">
-                            <Border  x:Name="preview_border_left" Panel.ZIndex="10" Width="80" Background="Red" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}" />
+                            <Border  x:Name="preview_border_left" Panel.ZIndex="10" Width="80" Background="Red" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}" HorizontalAlignment="Left" Canvas.Left="81" VerticalAlignment="Center" />
                             <Rectangle Height="2"  Fill="Green"   Name="Horizontal_line"   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                             <Rectangle Width="2" Fill="Green" Name="Vertical_line" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
-                            <Border x:Name="preview_border_right" Panel.ZIndex="10" Width="80" Background="Red"   Canvas.Left="390" Canvas.Top="3"  Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
+                            <Border x:Name="preview_border_right" Panel.ZIndex="10" Width="80" Background="Red"   Canvas.Left="301"  Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                         </Canvas>
                     </Grid>
                 </Border>
 
                 <!-- EFFECTS PANEL -->
-                <Border Grid.Column="2" Background="#22111111" CornerRadius="8" Margin="2">
-                    <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                        <TextBlock Name="DebugLiv" TextWrapping="Wrap" Text="awd" Foreground="white"/>
-                    </ScrollViewer>
-                </Border>
+                <Grid Grid.Column="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*"/>
+                        <ColumnDefinition Width="*"/>
+
+                    </Grid.ColumnDefinitions>
+
+
+                    <Border Grid.Column="1" Background="#22111111" CornerRadius="8" >
+                        <StackPanel Name="MainButtonPanel" Grid.Column="1" VerticalAlignment="Top">
+                            <Button Content="Panel 1" Click="MainButton_Click" Tag="Panel1" Margin="0,0,0,5"/>
+
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Side panels container -->
+                    <Grid  Name="SidePanelContainer"  Grid.Column="0"  >
+
+                        <!-- Panel 1 -->
+
+                        <StackPanel Name="Panel1" Visibility="Collapsed" Background="White" >
+                            <!-- Header -->
+                            <TextBlock Text="Animation" FontWeight="Bold" Margin="5"/>
+
+                            <!-- Intro & Outro buttons -->
+                            <Border BorderBrush="Black" BorderThickness="1" Background="LightGray" CornerRadius="8" Margin="5" Padding="5">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Width="50" Height="20" Content="Intro" Click="MainButton_Click" Tag="panel_intro_animation" HorizontalAlignment="Stretch"/>
+                                    <Button Width="50" Height="20" Content="Outro" Click="MainButton_Click" Tag="panel_outro_animation" Margin="5,0,0,0" HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+                            </Border>
+
+
+                            <!-- Scrollable buttons -->
+                            <!-- limit height -->
+                            <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Margin="5" Height="440">
+                                <UniformGrid Columns="3" Rows="0" >
+                                    <!-- 3 columns, rows auto -->
+                                    <Button Content="P2 Button 2" Height="150"/>
+                                    <Button Content="P2 Button 2" Height="150"/>
+                                    <Button Content="P2 Button 2" Height="150"/>
+           
+                                </UniformGrid>
+                            </ScrollViewer>
+
+                        </StackPanel>
+
+
+
+
+                    </Grid>
+                </Grid>
+
+
+
+
+
+
+
+                <!-- Vertical buttons -->
+
             </Grid>
         </Border>
 
