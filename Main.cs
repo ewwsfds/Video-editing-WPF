@@ -129,6 +129,15 @@ namespace WpfApp1
 
             // This will fire every time user clicks maximize/restore/minimize
             this.SizeChanged += MainWindow_SizeChanged;
+
+
+            Canvas.SetLeft(preview_border_right, canvasContainer.ActualWidth);
+            Canvas.SetLeft(Vertical_line, canvasContainer.ActualWidth/2);
+            Canvas.SetTop(Horizontal_line, canvasContainer.ActualHeight/2);
+
+
+
+
         }
 
         private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -136,19 +145,11 @@ namespace WpfApp1
             // User just changed/messed with the window size
             DebugLiv.Text = ($"Window size changed: {e.PreviousSize.Width}x{e.PreviousSize.Height} -> {e.NewSize.Width}x{e.NewSize.Height}");
 
-            previewCanvas.Width = canvasContainer.ActualWidth / 2;
-            previewCanvas.Height = canvasContainer.ActualHeight / 3;
-
-
-            preview_Lines.Width = canvasContainer.ActualWidth / 2;
-            preview_Lines.Height = canvasContainer.ActualHeight / 3;
-
-            Canvas.SetLeft(previewCanvas, (canvasContainer.ActualWidth - previewCanvas.Width) / 2);
-            Canvas.SetTop(previewCanvas, (canvasContainer.ActualHeight - previewCanvas.Height) / 2);
-
-
 
             // Run your code here
+            Canvas.SetLeft(preview_border_right, canvasContainer.ActualWidth);
+            Canvas.SetLeft(Vertical_line, canvasContainer.ActualWidth / 2);
+            Canvas.SetTop(Horizontal_line, canvasContainer.ActualHeight / 2);
         }
 
         private void import_media(object sender, RoutedEventArgs e)
@@ -283,6 +284,7 @@ namespace WpfApp1
 
 
 
+
             Canvas.SetZIndex(borderRect, 99);
 
 
@@ -312,7 +314,6 @@ namespace WpfApp1
 
 
 
-            offsetX += 70;
 
             // Create a rectangle inside the canvas
             Rectangle rect = new Rectangle
@@ -322,18 +323,21 @@ namespace WpfApp1
                 Fill = Brushes.Red
             };
 
+
+
+
+            canvasContainer.Children.Add(Preview_canvas);
+            canvasContainer.Children.Add(rect);
+
+
+
+
+
+
+
             // Set rectangle slightly outside top-left of its canvas
-            Canvas.SetLeft(rect, -9);
-            Canvas.SetTop(rect, -9);
 
-            Preview_canvas.Children.Add(rect);
-            previewCanvas.Children.Add(Preview_canvas);
 
-            // Transform Preview_canvas position relative to the Grid (canvasContainer)
-            Point pos = Preview_canvas.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-
-            Canvas.SetLeft(borderRect, pos.X);
-            Canvas.SetTop(borderRect, pos.Y);
 
 
             // Prepare dragging variables
@@ -845,7 +849,7 @@ namespace WpfApp1
 
                 canvas.Background = Brushes.Purple;
 
-                previewCanvas.Children.Remove(Preview_canvas);
+                canvasContainer.Children.Remove(Preview_canvas);
                 return;
 
             }
@@ -869,18 +873,14 @@ namespace WpfApp1
             rect.MouseLeftButtonDown += (s, me) =>
             {
                 Preview_isresizing = true;
-                RecstartPos = me.GetPosition(previewCanvas);
+                RecstartPos = me.GetPosition(canvasContainer);
                 me.Handled = true; // prevent canvas from also reacting
             };
 
 
 
-            TranslateTransform Preview_canvas_transform = new TranslateTransform();
-            Preview_canvas.RenderTransform = Preview_canvas_transform;
 
 
-            TranslateTransform borderRect_transform = new TranslateTransform();
-            borderRect.RenderTransform = borderRect_transform;
 
 
 
@@ -892,7 +892,7 @@ namespace WpfApp1
                 if (!Preview_isresizing || Mouse.LeftButton != MouseButtonState.Pressed)
                     return;
 
-                Point currentPos = me.GetPosition(previewCanvas);
+                Point currentPos = me.GetPosition(canvasContainer);
 
                 double dx = currentPos.X - RecstartPos.X;
                 double dy = currentPos.Y - RecstartPos.Y;
@@ -949,12 +949,27 @@ namespace WpfApp1
 
 
 
+            TranslateTransform Preview_canvas_transform = new TranslateTransform();
+            Preview_canvas.RenderTransform = Preview_canvas_transform;
+
+            TranslateTransform borderRect_transform = new TranslateTransform();
+            borderRect.RenderTransform = borderRect_transform;
+
+
+            TranslateTransform Rect_transform = new TranslateTransform();
+            rect.RenderTransform = Rect_transform;
+
+            Preview_canvas_transform.X = canvasContainer.ActualWidth / 2;
+            borderRect_transform.X = canvasContainer.ActualWidth / 2;
+            Rect_transform.X = canvasContainer.ActualWidth / 2;
+            Rect_transform.Y = canvasContainer.ActualHeight / 2;
 
             bool borderRect_isDragging = false;
             Point startPos_borderRect;
 
 
 
+            bool isYCennter = false;
 
             borderRect.MouseLeftButtonDown += (s, me) =>
             {
@@ -969,62 +984,69 @@ namespace WpfApp1
             borderRect.MouseMove += (s, me) =>
             {
                 if (!borderRect_isDragging) return;
-
                 Point currentPos = me.GetPosition(canvasContainer);
 
                 double dx = currentPos.X - startPos_borderRect.X;
                 double dy = currentPos.Y - startPos_borderRect.Y;
 
-                // --- compute new absolute transform FIRST ---
-                double newX = borderRect_transform.X + dx;
-                double newY = borderRect_transform.Y + dy;
+                // current absolute position
+                double newX = Preview_canvas_transform.X + dx;
+                double newY = Preview_canvas_transform.Y + dy;
 
-                // absolute position of preview canvas
-                Point previewAbs = Preview_canvas
-                    .TransformToAncestor(canvasContainer)
-                    .Transform(new Point(0, 0));
+                double canvasCenterX = newX + Preview_canvas.Width / 2;
+                double canvasCenterY = newY + Preview_canvas.Height / 2;
 
-                double centerX = previewAbs.X + Preview_canvas.Width / 2 + dx;
-                double centerY = previewAbs.Y + Preview_canvas.Height / 2 + dy;
+
 
                 double verticalLineX = canvasContainer.ActualWidth / 2;
                 double horizontalLineY = canvasContainer.ActualHeight / 2;
 
-                const double snapDistance = 25;
-                double MsnapDistance = Preview_canvas.ActualHeight * 0.35;
-                // -------- SNAP LOGIC (override, not +=) --------
+                const double snapDistance = 55;
+                double MsnapDistance = Preview_canvas.ActualHeight/3;
+                double MsnapDistanceX = Preview_canvas.ActualWidth/3;
+
+
 
                 // vertical snap
-                if (Math.Abs(centerX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
+
+                if (Math.Abs(canvasCenterX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
                 {
-                    newX += verticalLineX - centerX;
+                    newX = verticalLineX - Preview_canvas.Width / 2;
                     Vertical_line.Fill = Brushes.Red;
+                    isYCennter = true;
                 }
                 else
                 {
+                    isYCennter = false;
                     Vertical_line.Fill = Brushes.Transparent;
+
                 }
 
                 // horizontal snap
-                if (Math.Abs(centerY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
+                if (Math.Abs(canvasCenterY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistanceX)
                 {
-                    newY += horizontalLineY - centerY;
+                    newY = horizontalLineY - Preview_canvas.Height / 2;
                     Horizontal_line.Fill = Brushes.Red;
                 }
                 else
                 {
                     Horizontal_line.Fill = Brushes.Transparent;
+
                 }
 
-                // -------- APPLY ONCE --------
+                // apply absolute (NOT +=)
                 borderRect_transform.X = newX;
                 borderRect_transform.Y = newY;
 
-                startPos_borderRect = currentPos;
-
-                // keep preview following
                 Preview_canvas_transform.X = newX;
                 Preview_canvas_transform.Y = newY;
+
+                Rect_transform.X = newX-9;
+                Rect_transform.Y = newY-9;
+
+                startPos_borderRect = currentPos;
+
+                DebugLiv.Text = $"vertical= {Canvas.GetLeft(preview_border_right)}, Full: {isYCennter}, \n Y{borderRect_transform.X}";
             };
 
 
