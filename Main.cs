@@ -312,9 +312,6 @@ namespace WpfApp1
 
 
 
-            // Set initial position of canvas
-            Canvas.SetLeft(Preview_canvas, offsetX);
-            Canvas.SetTop(Preview_canvas, 10);
             offsetX += 70;
 
             // Create a rectangle inside the canvas
