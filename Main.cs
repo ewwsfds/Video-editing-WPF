@@ -143,7 +143,6 @@ namespace WpfApp1
         private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             // User just changed/messed with the window size
-            DebugLiv.Text = ($"Window size changed: {e.PreviousSize.Width}x{e.PreviousSize.Height} -> {e.NewSize.Width}x{e.NewSize.Height}");
 
 
             // Run your code here
@@ -636,7 +635,6 @@ namespace WpfApp1
 
 
                 highlightRowShower(canvas, currentPos);
-                DebugLiv.Text = $"Zoom= {zoomLevel}, tranlateX={translate.X}, leftShrinkAmount= {info.leftShrinkAmount} , Wodth={canvas.Width},\n translate={translate.X}";
 
             };
 
@@ -766,7 +764,6 @@ namespace WpfApp1
                     }
 
 
-                    DebugLiv.Text = $"Zoom= {zoomLevel}, tranlateX={translate.X}, leftShrinkAmount= {info.leftShrinkAmount} , \n Wodth={canvas.Width}, translate={translate.X}";
 
                 }
 
@@ -1046,7 +1043,6 @@ namespace WpfApp1
 
                 startPos_borderRect = currentPos;
 
-                DebugLiv.Text = $"vertical= {Canvas.GetLeft(preview_border_right)}, Full: {isYCennter}, \n Y{borderRect_transform.X}";
             };
 
 
@@ -1453,7 +1449,6 @@ namespace WpfApp1
                     timeShower.Children.Add(txt);
                 }
             }
-            DebugLiv.Text = $"Zoom= {zoomLevel}";
 
 
             if (canvases == null || canvases.Count == 0)
@@ -1479,7 +1474,6 @@ namespace WpfApp1
                 info.leftShrinkAmount *= scaleFactor;
                 info.rightShrinkAmount *= scaleFactor;
 
-                DebugLiv.Text = $"Zoom= {zoomLevel}, Width={info.Canvas.Width}, leftShrinkAmount= {info.leftShrinkAmount}, \n translate={translate.X} ";
 
                 // keep right handle on edge
                 Canvas.SetLeft(info.rectRight, info.Canvas.Width - info.rectRight.Width);
@@ -1506,7 +1500,6 @@ namespace WpfApp1
         private void PreviewChecker()
         {
             double timelineX = Vertical_Timeline_Transform.X;
-            StringBuilder debugText = new StringBuilder();
 
             foreach (var previewCanvas in Preview_canvases)
             {
@@ -1527,17 +1520,42 @@ namespace WpfApp1
                 }
 
                 // Optionally, you can still debug width/height/aspect
-                debugText.AppendLine($"Start={previewCanvas.start}, Y={previewCanvas.Y}, End={previewCanvas.end}, aspect={previewCanvas.AspectRatio}, Zoom= {zoomLevel}");
             }
 
-            DebugLiv.Text = debugText.ToString();
         }
 
 
 
 
 
+        private StackPanel _currentPanel = null;
 
+
+        private void MainButton_Click(object sender, RoutedEventArgs e)
+        {
+            Button clickedButton = sender as Button;
+            string panelName = clickedButton.Tag.ToString();
+
+            StackPanel panelToShow = SidePanelContainer.FindName(panelName) as StackPanel;
+
+            if (panelToShow == null)
+                return;
+
+            // Toggle logic
+            if (_currentPanel == panelToShow)
+            {
+                panelToShow.Visibility = Visibility.Collapsed;
+                _currentPanel = null;
+            }
+            else
+            {
+                if (_currentPanel != null)
+                    _currentPanel.Visibility = Visibility.Collapsed;
+
+                panelToShow.Visibility = Visibility.Visible;
+                _currentPanel = panelToShow;
+            }
+        }
 
 
 
