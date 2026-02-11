@@ -8,6 +8,8 @@
         KeyDown="Window_KeyDown" 
         Focusable="True"    
         Title="MainWindow" Height="450" Width="800"
+        
+        Topmost="True"
         Background="#FF1E1E1E">
 
     <Grid Name="MainGrid">
@@ -91,15 +93,10 @@
                         </Border>
 
                         <Canvas  Grid.Row="1" Name="canvasContainer">
-
-                            <Canvas Name="previewCanvas" Background="#AA111111" ClipToBounds="True">
-                                <Grid Name="preview_Lines" Background="Transparent" Width="{Binding ActualWidth, ElementName=previewCanvas}" Height="{Binding ActualHeight, ElementName=previewCanvas}">
-                                    <Rectangle Height="2" Fill="Red" HorizontalAlignment="Stretch" VerticalAlignment="Center" Name="Horizontal_line"/>
-                                    <Rectangle Width="2" Fill="Red" VerticalAlignment="Stretch" HorizontalAlignment="Center" Name="Vertical_line"/>
-                                </Grid>
-                            </Canvas>
-
-
+                            <Border  x:Name="preview_border_left" Panel.ZIndex="10" Width="80" Background="Red" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}" />
+                            <Rectangle Height="2"  Fill="Green"   Name="Horizontal_line"   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
+                            <Rectangle Width="2" Fill="Green" Name="Vertical_line" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
+                            <Border x:Name="preview_border_right" Panel.ZIndex="10" Width="80" Background="Red"   Canvas.Left="390" Canvas.Top="3"  Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                         </Canvas>
                     </Grid>
                 </Border>
