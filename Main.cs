@@ -978,47 +978,29 @@ namespace WpfApp1
                 double dx = currentPos.X - startPos_borderRect.X;
                 double dy = currentPos.Y - startPos_borderRect.Y;
 
+                // --- compute new absolute transform FIRST ---
+                double newX = borderRect_transform.X + dx;
+                double newY = borderRect_transform.Y + dy;
 
+                // absolute position of preview canvas
+                Point previewAbs = Preview_canvas
+                    .TransformToAncestor(canvasContainer)
+                    .Transform(new Point(0, 0));
 
+                double centerX = previewAbs.X + Preview_canvas.Width / 2 + dx;
+                double centerY = previewAbs.Y + Preview_canvas.Height / 2 + dy;
 
-
-
-                // Make player follow bot in absolute MainGrid coordinates
-                Point preview_canvas_Absolute_pos = Preview_canvas.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-
-
-
-
-
-
-
-
-
-                Point horizontal_line_Absolute_pos = Horizontal_line.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-                Point Vertical_line_Absolute_pos = Vertical_line.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-
-
-
-
-                // --- center of preview canvas ---
-                double canvasCenterX = preview_canvas_Absolute_pos.X + (Preview_canvas.Width / 2);
-                double canvasCenterY = preview_canvas_Absolute_pos.Y + (Preview_canvas.Height / 2);
-
-
-                // --- center lines ---
                 double verticalLineX = canvasContainer.ActualWidth / 2;
                 double horizontalLineY = canvasContainer.ActualHeight / 2;
 
                 const double snapDistance = 25;
                 double MsnapDistance = Preview_canvas.ActualHeight * 0.35;
+                // -------- SNAP LOGIC (override, not +=) --------
 
-                // --- Vertical snap ---
-                if (Math.Abs(canvasCenterX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
+                // vertical snap
+                if (Math.Abs(centerX - verticalLineX) <= snapDistance && Math.Abs(currentPos.X - verticalLineX) <= MsnapDistance)
                 {
-                    borderRect_transform.X += verticalLineX - Preview_canvas.Width;
-                    dx = 0; // optional: kill drift
-
-                    // Calculate the needed local TranslateTransform to match absolute position
+                    newX += verticalLineX - centerX;
                     Vertical_line.Fill = Brushes.Red;
                 }
                 else
@@ -1026,13 +1008,10 @@ namespace WpfApp1
                     Vertical_line.Fill = Brushes.Transparent;
                 }
 
-                // --- Horizontal snap ---
-                if (Math.Abs(canvasCenterY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
+                // horizontal snap
+                if (Math.Abs(centerY - horizontalLineY) <= snapDistance && Math.Abs(currentPos.Y - horizontalLineY) <= MsnapDistance)
                 {
-                    borderRect_transform.Y += horizontalLineY - Preview_canvas.Height;
-                    dy = 0; // optional: kill drift
-
-
+                    newY += horizontalLineY - centerY;
                     Horizontal_line.Fill = Brushes.Red;
                 }
                 else
@@ -1040,34 +1019,17 @@ namespace WpfApp1
                     Horizontal_line.Fill = Brushes.Transparent;
                 }
 
-
-
-
-                borderRect_transform.X += dx;
-                borderRect_transform.Y += dy;
+                // -------- APPLY ONCE --------
+                borderRect_transform.X = newX;
+                borderRect_transform.Y = newY;
 
                 startPos_borderRect = currentPos;
 
-
-
-
-
-                // Make player follow bot in absolute MainGrid coordinates
-                Point borderRect_Absolute_pos = borderRect.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-                preview_canvas_Absolute_pos = Preview_canvas.TransformToAncestor(canvasContainer).Transform(new Point(0, 0));
-
-
-
-
-                // Calculate the needed local TranslateTransform to match absolute position
-                Preview_canvas_transform.X += borderRect_Absolute_pos.X - preview_canvas_Absolute_pos.X;
-                Preview_canvas_transform.Y += borderRect_Absolute_pos.Y - preview_canvas_Absolute_pos.Y;
-
-
-                DebugLiv.Text = $"Vertical_line_Absolute_pos= {canvasContainer.ActualWidth}, \n Preview_canvas{borderRect_Absolute_pos.X}";
-
-
+                // keep preview following
+                Preview_canvas_transform.X = newX;
+                Preview_canvas_transform.Y = newY;
             };
+
 
 
             borderRect.MouseUp += (s, me) =>
