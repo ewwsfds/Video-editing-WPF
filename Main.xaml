@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:gif="http://wpfanimatedgif.codeplex.com" 
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
         KeyDown="Window_KeyDown" 
@@ -93,7 +94,7 @@
                         </Border>
 
                         <Canvas  Grid.Row="1" Name="canvasContainer">
-                            <Border  x:Name="preview_border_left" Panel.ZIndex="10" Width="80" Background="Red" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}" HorizontalAlignment="Left" Canvas.Left="81" VerticalAlignment="Center" />
+                            <Border  x:Name="preview_border_left" Panel.ZIndex="10" Width="80" Background="Red" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}" HorizontalAlignment="Left" Canvas.Left="2" VerticalAlignment="Center" />
                             <Rectangle Height="2"  Fill="Green"   Name="Horizontal_line"   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                             <Rectangle Width="2" Fill="Green" Name="Vertical_line" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
                             <Border x:Name="preview_border_right" Panel.ZIndex="10" Width="80" Background="Red"   Canvas.Left="301"  Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"/>
@@ -109,10 +110,13 @@
 
                     </Grid.ColumnDefinitions>
 
-
+                    <!--Vertical Panels-->
                     <Border Grid.Column="1" Background="#22111111" CornerRadius="8" >
                         <StackPanel Name="MainButtonPanel" Grid.Column="1" VerticalAlignment="Top">
-                            <Button Content="Panel 1" Click="MainButton_Click" Tag="Panel1" Margin="0,0,0,5"/>
+                            <StackPanel>
+                                <Image Source="/documents/icons/animation-icon.png" MouseDown="MainButton_Click" Tag="Panel1" Height="33" Width="37" />
+                                <TextBlock Text="Animation" Foreground="White" Width="59" FontSize="10" />
+                            </StackPanel>
 
                         </StackPanel>
                     </Border>
@@ -121,33 +125,54 @@
                     <Grid  Name="SidePanelContainer"  Grid.Column="0"  >
 
                         <!-- Panel 1 -->
+                        <Grid Name="Panel1" Background="#FF2D2D30" >
 
-                        <StackPanel Name="Panel1" Visibility="Collapsed" Background="White" >
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <!-- header -->
+                                <RowDefinition Height="Auto"/>
+                                <!-- intro/outro -->
+                                <RowDefinition Height="*"/>
+                                <!-- scroll area -->
+                            </Grid.RowDefinitions>
                             <!-- Header -->
-                            <TextBlock Text="Animation" FontWeight="Bold" Margin="5"/>
+                            <TextBlock Grid.Row="0" Text="Animation" FontWeight="Bold" Margin="5" Foreground="White"/>
 
                             <!-- Intro & Outro buttons -->
-                            <Border BorderBrush="Black" BorderThickness="1" Background="LightGray" CornerRadius="8" Margin="5" Padding="5">
+                            <Border Grid.Row="1" BorderBrush="Black" BorderThickness="1" Background="LightGray" CornerRadius="8" Margin="5" Padding="5">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Button Width="50" Height="20" Content="Intro" Click="MainButton_Click" Tag="panel_intro_animation" HorizontalAlignment="Stretch"/>
-                                    <Button Width="50" Height="20" Content="Outro" Click="MainButton_Click" Tag="panel_outro_animation" Margin="5,0,0,0" HorizontalAlignment="Stretch"/>
+                                    <Button BorderThickness="0" Width="50" Height="20" Content="Intro" Click="MainButton_Click" Tag="panel_intro_animation" HorizontalAlignment="Stretch"/>
+                                    <Button BorderThickness="0" Width="50" Height="20" Content="Outro" Click="MainButton_Click" Tag="panel_outro_animation" Margin="5,0,0,0" HorizontalAlignment="Stretch"/>
                                 </StackPanel>
                             </Border>
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" VerticalAlignment="Top">
+                                <UniformGrid Columns="3"  VerticalAlignment="Top">
+                                    <StackPanel>
+                                        <Image gif:ImageBehavior.AnimatedSource="/documents/animation-gif/6ce20cae5d2c4973a8ba0d43f9f30ecf~tplv-fhsjxsyzit-resize_100_100.gif" Margin="4,10,0,0" />
+                                        <TextBlock Text="Side Swipe" FontSize="10" Foreground="Wheat" Padding="5"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <Image gif:ImageBehavior.AnimatedSource="/documents/animation-gif/6ce20cae5d2c4973a8ba0d43f9f30ecf~tplv-fhsjxsyzit-resize_100_100.gif" Margin="4,10,0,0" />
+                                        <TextBlock Text="Side Swipe" FontSize="10" Foreground="Wheat" Padding="5"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <Image gif:ImageBehavior.AnimatedSource="/documents/animation-gif/6ce20cae5d2c4973a8ba0d43f9f30ecf~tplv-fhsjxsyzit-resize_100_100.gif" Margin="4,10,0,0" />
+                                        <TextBlock Text="Side Swipe" FontSize="10" Foreground="Wheat" Padding="5"/>
+                                    </StackPanel>
+
+                                    <StackPanel>
+                                        <Image gif:ImageBehavior.AnimatedSource="/documents/animation-gif/6ce20cae5d2c4973a8ba0d43f9f30ecf~tplv-fhsjxsyzit-resize_100_100.gif" Margin="4,10,0,0" />
+                                        <TextBlock Text="Side Swipe" FontSize="10" Foreground="Wheat" Padding="5"/>
+                                    </StackPanel>
+
+                                </UniformGrid>
+                            </ScrollViewer>
 
 
                             <!-- Scrollable buttons -->
                             <!-- limit height -->
-                            <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Margin="5" Height="440">
-                                <UniformGrid Columns="3" Rows="0" >
-                                    <!-- 3 columns, rows auto -->
-                                    <Button Content="P2 Button 2" Height="150"/>
-                                    <Button Content="P2 Button 2" Height="150"/>
-                                    <Button Content="P2 Button 2" Height="150"/>
-           
-                                </UniformGrid>
-                            </ScrollViewer>
 
-                        </StackPanel>
+                        </Grid>
 
 
 
