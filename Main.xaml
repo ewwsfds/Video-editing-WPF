@@ -125,7 +125,7 @@
                     <Grid  Name="SidePanelContainer"  Grid.Column="0"  >
 
                         <!-- Panel 1 -->
-                        <Grid Name="Panel1" Background="#FF2D2D30" >
+                        <Grid Name="Panel1" Background="#FF2D2D30" Visibility="Collapsed">
 
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
