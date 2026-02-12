@@ -96,6 +96,11 @@ namespace WpfApp1
             public double rightShrinkAmount { get; set; }
 
 
+            public Rectangle borderRect { get; set; }
+
+            public Rectangle rect { get; set; }
+
+            public bool hasStarted { get; set; }
 
         }
 
@@ -198,7 +203,7 @@ namespace WpfApp1
             // Update label
             CurrentTime.Content = ((int)mouseX).ToString();
 
-            PreviewChecker();
+            TimeChecker();
         }
 
         DispatcherTimer playTimer;
@@ -212,6 +217,7 @@ namespace WpfApp1
             playTimer = new DispatcherTimer();
             playTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
             lastTick = DateTime.Now;
+            TimeChecker();
 
             playTimer.Tick += (s, e) =>
             {
@@ -239,6 +245,12 @@ namespace WpfApp1
             {
                 isPlaying = !isPlaying;
                 StartTimelinePlayback();
+
+                if (!isPlaying)
+                {
+                  pauseALL();
+
+                }
             }
         }
 
@@ -246,7 +258,11 @@ namespace WpfApp1
         {
             isPlaying = !isPlaying;
             StartTimelinePlayback();
+            if (!isPlaying)
+            {
+                pauseALL();
 
+            }
         }
 
 
@@ -412,6 +428,9 @@ namespace WpfApp1
                 leftShrinkAmount = 0,
                 rightShrinkAmount = 0,
                 rectRight = rectRight,
+                borderRect = borderRect,
+                rect=rect,
+                hasStarted=false,
 
             };
 
@@ -424,6 +443,14 @@ namespace WpfApp1
             if (fileType == ".jpg" || fileType == ".jpeg" || fileType == ".png")
             {
 
+                Preview_canvas.Opacity = 0;
+                Preview_canvas.IsHitTestVisible = false;
+
+                borderRect.Opacity = 0;
+                borderRect.IsHitTestVisible = false;
+
+                rect.Opacity = 0;
+                rect.IsHitTestVisible = false;
 
                 // Ladda bitmap korrekt
                 bitmap.BeginInit();
@@ -523,11 +550,31 @@ namespace WpfApp1
                 canvas.Children.Add(outline);
 
                 canvas.Width = imageWidth;
+
+                Preview_canvas.Opacity = 1;
+                Preview_canvas.IsHitTestVisible = true;
+
+                borderRect.Opacity = 1;
+                borderRect.IsHitTestVisible = true;
+
+                rect.Opacity = 1;
+                rect.IsHitTestVisible = true;
             }
 
 
             else if (fileType == ".mp4" || fileType == ".avi" || fileType == ".wmv")
             {
+
+                Preview_canvas.Opacity = 0;
+                Preview_canvas.IsHitTestVisible = false;
+
+                borderRect.Opacity = 0;
+                borderRect.IsHitTestVisible = false;
+
+                rect.Opacity = 0;
+                rect.IsHitTestVisible = false;
+
+
                 MediaElement media = new MediaElement
                 {
                     Source = new Uri(path),
@@ -536,6 +583,8 @@ namespace WpfApp1
                     Stretch = Stretch.Fill   // NOT Uniform!
 
                 };
+
+
 
                 media.MediaOpened += (s, e) =>
                 {
@@ -563,7 +612,21 @@ namespace WpfApp1
                         double totalSeconds = duration.TotalSeconds;
 
                         canvas.Width = totalSeconds * pixel_per_second;
+                        info.end=translate.X+canvas.Width;
+
+                        Canvas.SetLeft(rectRight, canvas.Width - rectRight.Width);
                     }
+
+
+
+                    Preview_canvas.Opacity = 1;
+                    Preview_canvas.IsHitTestVisible = true;
+
+                    borderRect.Opacity = 1;
+                    borderRect.IsHitTestVisible = true;
+
+                    rect.Opacity = 1;
+                    rect.IsHitTestVisible = true;
                 };
 
                 info.Content = media;
@@ -577,7 +640,7 @@ namespace WpfApp1
                 Directory.CreateDirectory(tempFolder);
 
                 // run extraction
-                ExtractFramesAsync(path, tempFolder, canvas);
+                ExtractFramesAsync(path, tempFolder, canvas,rectRight);
 
 
 
@@ -600,6 +663,8 @@ namespace WpfApp1
 
                 canvas.Children.Add(outline);
 
+                media.Play();
+                media.Pause();
 
 
             }
@@ -1161,12 +1226,12 @@ namespace WpfApp1
         }
 
 
-        private async Task ExtractFramesAsync(string videoPath, string tempFolder, Canvas canvas)
+        private void ExtractFramesAsync(string videoPath, string tempFolder, Canvas canvas, Rectangle rectRight)
         {
             const int TileWidth = 90;
 
-            await Task.Run(() =>
-            {
+
+            
                 string outputPattern = IOPath.Combine(tempFolder, "frame_%04d.png");
 
                 ProcessStartInfo psi = new ProcessStartInfo
@@ -1179,7 +1244,6 @@ namespace WpfApp1
 
                 using (Process proc = Process.Start(psi))
                     proc.WaitForExit();
-            });
 
             // ---------- UI THREAD ----------
 
@@ -1233,6 +1297,9 @@ namespace WpfApp1
             tileRect.Fill = brush_canvas;
             canvas.Children.Add(tileRect);
             Canvas.SetZIndex(tileRect, -99);
+
+            Canvas.SetLeft(rectRight, canvas.Width - rectRight.Width);
+
 
         }
 
@@ -1506,17 +1573,56 @@ namespace WpfApp1
                 // Check if timeline is within the canvas start/end
                 bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
 
-                // Set canvas visibility
+                // Update canvas visibility
                 previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
                 previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
 
+                previewCanvas.borderRect.Opacity = isVisible ? 1 : 0;
+                previewCanvas.borderRect.IsHitTestVisible = isVisible;
+
+                previewCanvas.rect.Opacity = isVisible ? 1 : 0;
+                previewCanvas.rect.IsHitTestVisible = isVisible;
+
+                // Handle MediaElement
+                if (previewCanvas.Content is MediaElement media)
+                {
+                    if (isVisible && isPlaying)
+                    {
+                        // ✅ Only set position the first time this frame becomes visible
+                        if (!previewCanvas.hasStarted)
+                        {
+                            int timeToStartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount) / pixel_per_second;
+                            media.Position = TimeSpan.FromSeconds(Math.Max(0, timeToStartVideo));
+                            previewCanvas.hasStarted = true; // mark as initialized
+                        }
+
+                        media.Play();
+                    }
+                    else
+                    {
+                        media.Pause();
+
+                        // Reset flag if the timeline leaves the canvas
+                        if (!isVisible)
+                            previewCanvas.hasStarted = false;
+                    }
+                }
+            }
+        }
+
+
+
+        private void pauseALL()
+        {
+            Debug.WriteLine(isPlaying);
+            double timelineX = Vertical_Timeline_Transform.X;
+
+            foreach (var previewCanvas in Preview_canvases)
+            {
                 // Handle media playback if it's a MediaElement
                 if (previewCanvas.Content is MediaElement media)
                 {
-                    if (isVisible)
-                        media.Play();
-                    else
-                        media.Pause();
+                    media.Pause();
                 }
 
                 // Optionally, you can still debug width/height/aspect
@@ -1525,7 +1631,54 @@ namespace WpfApp1
         }
 
 
+        private void TimeChecker()
+        {
+            Debug.WriteLine(isPlaying);
 
+            double timelineX = Vertical_Timeline_Transform.X;
+
+            foreach (var previewCanvas in Preview_canvases)
+            {
+                // Check if timeline is within the canvas start/end
+                bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
+
+                // Set canvas visibility
+                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
+                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
+
+                previewCanvas.borderRect.Opacity = isVisible ? 1 : 0;
+                previewCanvas.borderRect.IsHitTestVisible = isVisible;
+
+
+                previewCanvas.rect.Opacity = isVisible ? 1 : 0;
+                previewCanvas.rect.IsHitTestVisible = isVisible;
+
+
+                // Handle media playback if it's a MediaElement
+                if (previewCanvas.Content is MediaElement media)
+                {
+                    if (isVisible)
+                    {
+                        int timeTostartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount)/pixel_per_second;
+                        // Convert seconds to TimeSpan
+                        media.Position = TimeSpan.FromSeconds(timeTostartVideo);
+                        if (isPlaying)
+                        {
+                          media.Play();
+                        }
+
+                    }
+
+                    if (!isVisible || !isPlaying)
+                    {
+                        media.Pause();
+                    }
+                }
+
+                // Optionally, you can still debug width/height/aspect
+            }
+
+        }
 
 
         private UIElement _currentPanel = null;
