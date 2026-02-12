@@ -132,8 +132,8 @@ namespace WpfApp1
 
 
             Canvas.SetLeft(preview_border_right, canvasContainer.ActualWidth);
-            Canvas.SetLeft(Vertical_line, canvasContainer.ActualWidth/2);
-            Canvas.SetTop(Horizontal_line, canvasContainer.ActualHeight/2);
+            Canvas.SetLeft(Vertical_line, canvasContainer.ActualWidth / 2);
+            Canvas.SetTop(Horizontal_line, canvasContainer.ActualHeight / 2);
 
 
 
@@ -999,8 +999,8 @@ namespace WpfApp1
                 double horizontalLineY = canvasContainer.ActualHeight / 2;
 
                 const double snapDistance = 55;
-                double MsnapDistance = Preview_canvas.ActualHeight/3;
-                double MsnapDistanceX = Preview_canvas.ActualWidth/3;
+                double MsnapDistance = Preview_canvas.ActualHeight / 3;
+                double MsnapDistanceX = Preview_canvas.ActualWidth / 3;
 
 
 
@@ -1038,8 +1038,8 @@ namespace WpfApp1
                 Preview_canvas_transform.X = newX;
                 Preview_canvas_transform.Y = newY;
 
-                Rect_transform.X = newX-9;
-                Rect_transform.Y = newY-9;
+                Rect_transform.X = newX - 9;
+                Rect_transform.Y = newY - 9;
 
                 startPos_borderRect = currentPos;
 
@@ -1528,20 +1528,21 @@ namespace WpfApp1
 
 
 
-        private StackPanel _currentPanel = null;
-
+        private UIElement _currentPanel = null;
 
         private void MainButton_Click(object sender, RoutedEventArgs e)
         {
-            Button clickedButton = sender as Button;
-            string panelName = clickedButton.Tag.ToString();
+            var element = sender as FrameworkElement;
+            if (element?.Tag == null)
+                return;
 
-            StackPanel panelToShow = SidePanelContainer.FindName(panelName) as StackPanel;
+            string panelName = element.Tag.ToString();
 
+            UIElement panelToShow = SidePanelContainer.FindName(panelName) as UIElement;
             if (panelToShow == null)
                 return;
 
-            // Toggle logic
+            // toggle logic
             if (_currentPanel == panelToShow)
             {
                 panelToShow.Visibility = Visibility.Collapsed;
@@ -1556,6 +1557,7 @@ namespace WpfApp1
                 _currentPanel = panelToShow;
             }
         }
+
 
 
 
