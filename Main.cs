@@ -1548,69 +1548,50 @@ namespace WpfApp1
 
 
         //77
-        private PreviewCanvasInfo activePreview;
-
         private void PreviewCheckerOptimized()
         {
             double timelineX = Vertical_Timeline_Transform.X;
 
-            PreviewCanvasInfo found = null;
-
             foreach (var p in Preview_canvases)
             {
-                if (p.start < timelineX && timelineX <= p.end)
+                bool isVisible = p.start < timelineX && timelineX <= p.end;
+
+                // ---- set visibility only if changed ----
+                Visibility desired = isVisible ? Visibility.Visible : Visibility.Collapsed;
+
+                if (p.previewcanvas.Visibility != desired)
                 {
-                    found = p;
-                    break; // stop early
+                    p.previewcanvas.Visibility = desired;
+                    p.borderRect.Visibility = desired;
+                    p.rect.Visibility = desired;
                 }
-            }
 
-            if (found == activePreview)
-                return; // nothing changed → ZERO WORK
-
-            // ---- deactivate old ----
-            if (activePreview != null)
-            {
-                SetPreviewVisible(activePreview, false);
-
-                if (activePreview.Content is MediaPlayer m)
+                // ---- handle MediaPlayer ----
+                if (p.Content is MediaPlayer media)
                 {
-                    m.Pause();
-                    activePreview.hasStarted = false;
-                }
-            }
-
-            // ---- activate new ----
-            activePreview = found;
-
-            if (activePreview != null)
-            {
-                SetPreviewVisible(activePreview, true);
-
-                if (activePreview.Content is MediaPlayer m)
-                {
-                    if (!activePreview.hasStarted)
+                    if (isVisible && isPlaying)
                     {
-                        double t = (timelineX - activePreview.start - activePreview.leftShrinkAmount) / pixel_per_second;
-                        m.Position = TimeSpan.FromSeconds(Math.Max(0, t));
-                        activePreview.hasStarted = true;
+                        // only set position once
+                        if (!p.hasStarted)
+                        {
+                            double t = (timelineX - p.start - p.leftShrinkAmount) / pixel_per_second;
+                            media.Position = TimeSpan.FromSeconds(Math.Max(0, t));
+                            p.hasStarted = true;
+                        }
+                        media.Play();
                     }
+                    else
+                    {
+                        media.Pause();
 
-                    if (isPlaying)
-                        m.Play();
+                        // reset flag if timeline leaves
+                        if (!isVisible)
+                            p.hasStarted = false;
+                    }
                 }
             }
         }
 
-
-        private void SetPreviewVisible(PreviewCanvasInfo p, bool visible)
-        {
-            var v = visible ? Visibility.Visible : Visibility.Collapsed;
-
-            p.previewcanvas.Visibility = v;
-            p.borderRect.Visibility = v;
-            p.rect.Visibility = v;
-        }
 
 
         private void pauseALL()
