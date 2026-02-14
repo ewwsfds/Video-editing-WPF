@@ -251,9 +251,9 @@ namespace WpfApp1
 
             // update label immediately
             CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
-
             // refresh preview states
-            UpdatePreviews();
+            JumpVisibleVideosToTimeline();
+
         }
 
 
@@ -1478,7 +1478,7 @@ namespace WpfApp1
             if (timeShower == null) return; // prevents crash if called too early
 
             timeShower.Children.Clear();
-            const double pxPerSecond = 50;     // ALWAYS fixed
+             int pxPerSecond = pixel_per_second;     // ALWAYS fixed
             const double bigTickSeconds = 5;   // number every 5 seconds
 
             for (double x = 0; x <= rectangleWidth; x += pxPerSecond)
@@ -1625,6 +1625,38 @@ namespace WpfApp1
         }
 
 
+
+
+        private void JumpVisibleVideosToTimeline()
+        {
+            // Use unzoomed timeline position for calculations
+            double timelineXUnzoomed = Vertical_Timeline_Transform.X;
+
+            foreach (var p in Preview_canvases)
+            {
+                // Only handle previews that are currently visible
+                if (p.previewcanvas.Visibility == Visibility.Visible && p.Content is MediaPlayer media)
+                {
+                    // Compute the new time position
+                    double timeToStart = Math.Max(0, ((timelineXUnzoomed - p.start - p.leftShrinkAmount)/zoomLevel) / pixel_per_second);
+
+                    // Only update if the video hasn't started or position changed
+                    if (!p.hasStarted || Math.Abs(media.Position.TotalSeconds - timeToStart) > 0.01)
+                    {
+                        media.Position = TimeSpan.FromSeconds(timeToStart);
+                        p.hasStarted = true;
+                    }
+
+
+                    // If playback is paused, keep the video paused
+                    if (!isPlaying)
+                    {
+                        media.Pause();
+                    }
+
+                }
+            }
+        }
 
 
 
