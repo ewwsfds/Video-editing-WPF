@@ -187,24 +187,16 @@ namespace WpfApp1
 
 
 
+        // ---------------------- FIELDS ----------------------
+        private long lastTick;
+        private double timeSinceLastLabelUpdate = 0;
 
 
 
 
         // Click event handler
-        private void Timeline_Click(object sender, MouseButtonEventArgs e)
-        {
-            // Mouse position relative to the timeline Canvas (or parent)
-            double mouseX = e.GetPosition(timeline).X;
 
-            // Move the rectangle, centering it on the click
-            Vertical_Timeline_Transform.X = mouseX - Vertical_TimeLine.Width / 2;
 
-            // Update label
-            CurrentTime.Content = ((int)mouseX).ToString();
-
-            TimeChecker();
-        }
 
         DispatcherTimer playTimer;
 
@@ -212,12 +204,15 @@ namespace WpfApp1
         private void StartTimelinePlayback()
         {
             lastTick = Stopwatch.GetTimestamp();
-            TimeChecker();
-
             CompositionTarget.Rendering += OnFrame;
         }
 
-        private long lastTick;
+        private void StopTimelinePlayback()
+        {
+            CompositionTarget.Rendering -= OnFrame;
+            PauseAll();
+        }
+
 
         private void OnFrame(object sender, EventArgs e)
         {
@@ -227,10 +222,34 @@ namespace WpfApp1
             double deltaSeconds = (now - lastTick) / (double)Stopwatch.Frequency;
             lastTick = now;
 
+            // advance timeline
             Vertical_Timeline_Transform.X += pixel_per_second * deltaSeconds;
+
+            // update label only every 50ms
+            timeSinceLastLabelUpdate += deltaSeconds;
+            if (timeSinceLastLabelUpdate >= 0.05)
+            {
+                CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
+                timeSinceLastLabelUpdate = 0;
+            }
+
+            // update previews
+            UpdatePreviews();
+        }
+
+
+
+        private void Timeline_Click(object sender, MouseButtonEventArgs e)
+        {
+            double mouseX = e.GetPosition(timeline).X;
+
+            Vertical_Timeline_Transform.X = mouseX - Vertical_TimeLine.Width / 2;
+
+            // update label immediately
             CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
 
-            PreviewCheckerOptimized();
+            // refresh preview states
+            UpdatePreviews();
         }
 
 
@@ -239,29 +258,23 @@ namespace WpfApp1
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Space)
-            {
-                isPlaying = !isPlaying;
-                StartTimelinePlayback();
-
-                if (!isPlaying)
-                {
-                    pauseALL();
-
-                }
-            }
+                TogglePlayback();
         }
 
         private void PlayBTN(object sender, RoutedEventArgs e)
         {
-            isPlaying = !isPlaying;
-            StartTimelinePlayback();
-            if (!isPlaying)
-            {
-                pauseALL();
-
-            }
+            TogglePlayback();
         }
 
+        private void TogglePlayback()
+        {
+            isPlaying = !isPlaying;
+
+            if (isPlaying)
+                StartTimelinePlayback();
+            else
+                StopTimelinePlayback();
+        }
 
 
 
@@ -698,7 +711,7 @@ namespace WpfApp1
                 info.start = translate.X;
                 info.Y = translate.Y;
                 info.end = translate.X + canvas.Width;
-                PreviewCheckerOptimized();
+                UpdatePreviews();
 
 
             };
@@ -1451,7 +1464,7 @@ namespace WpfApp1
 
 
             DrawTimeline();
-            PreviewCheckerOptimized();
+            UpdatePreviews();
 
         }
 
@@ -1548,17 +1561,16 @@ namespace WpfApp1
 
 
         //77
-        private void PreviewCheckerOptimized()
+        private void UpdatePreviews()
         {
             double timelineX = Vertical_Timeline_Transform.X;
 
             foreach (var p in Preview_canvases)
             {
-                bool isVisible = p.start < timelineX && timelineX <= p.end;
+                bool shouldBeVisible = p.start < timelineX && timelineX <= p.end;
 
-                // ---- set visibility only if changed ----
-                Visibility desired = isVisible ? Visibility.Visible : Visibility.Collapsed;
-
+                // ---------------- VISIBILITY ----------------
+                Visibility desired = shouldBeVisible ? Visibility.Visible : Visibility.Collapsed;
                 if (p.previewcanvas.Visibility != desired)
                 {
                     p.previewcanvas.Visibility = desired;
@@ -1566,26 +1578,28 @@ namespace WpfApp1
                     p.rect.Visibility = desired;
                 }
 
-                // ---- handle MediaPlayer ----
+                // ---------------- MEDIA ----------------
                 if (p.Content is MediaPlayer media)
                 {
-                    if (isVisible && isPlaying)
+                    if (shouldBeVisible && isPlaying)
                     {
-                        // only set position once
                         if (!p.hasStarted)
                         {
-                            double t = (timelineX - p.start - p.leftShrinkAmount) / pixel_per_second;
-                            media.Position = TimeSpan.FromSeconds(Math.Max(0, t));
+                            double timeToStart = (timelineX - p.start - p.leftShrinkAmount) / pixel_per_second;
+                            media.Position = TimeSpan.FromSeconds(Math.Max(0, timeToStart));
                             p.hasStarted = true;
                         }
-                        media.Play();
+
+                        // play only if not already playing
+                        if (media.Clock == null && media.CanPause) // WPF MediaPlayer is a bit quirky
+                            media.Play();
                     }
                     else
                     {
                         media.Pause();
 
-                        // reset flag if timeline leaves
-                        if (!isVisible)
+                        // reset flag if leaving visible area
+                        if (!shouldBeVisible)
                             p.hasStarted = false;
                     }
                 }
@@ -1594,73 +1608,20 @@ namespace WpfApp1
 
 
 
-        private void pauseALL()
+        private void PauseAll()
         {
-            Debug.WriteLine(isPlaying);
-            double timelineX = Vertical_Timeline_Transform.X;
-
-            foreach (var previewCanvas in Preview_canvases)
+            foreach (var p in Preview_canvases)
             {
-                // Handle media playback if it's a MediaElement
-                if (previewCanvas.Content is MediaPlayer media)
+                if (p.Content is MediaPlayer media)
                 {
                     media.Pause();
                 }
-
-                // Optionally, you can still debug width/height/aspect
+                p.hasStarted = false;
             }
-
         }
 
 
-        private void TimeChecker()
-        {
-            Debug.WriteLine(isPlaying);
 
-            double timelineX = Vertical_Timeline_Transform.X;
-
-            foreach (var previewCanvas in Preview_canvases)
-            {
-                // Check if timeline is within the canvas start/end
-                bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
-
-                // Set canvas visibility
-                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
-                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
-
-                previewCanvas.borderRect.Opacity = isVisible ? 1 : 0;
-                previewCanvas.borderRect.IsHitTestVisible = isVisible;
-
-
-                previewCanvas.rect.Opacity = isVisible ? 1 : 0;
-                previewCanvas.rect.IsHitTestVisible = isVisible;
-
-
-                // Handle media playback if it's a MediaElement
-                if (previewCanvas.Content is MediaPlayer media)
-                {
-                    if (isVisible)
-                    {
-                        int timeTostartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount) / pixel_per_second;
-                        // Convert seconds to TimeSpan
-                        media.Position = TimeSpan.FromSeconds(timeTostartVideo);
-                        if (isPlaying)
-                        {
-                            media.Play();
-                        }
-
-                    }
-
-                    if (!isVisible || !isPlaying)
-                    {
-                        media.Pause();
-                    }
-                }
-
-                // Optionally, you can still debug width/height/aspect
-            }
-
-        }
 
 
         private UIElement _currentPanel = null;
