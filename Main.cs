@@ -102,6 +102,9 @@ namespace WpfApp1
 
             public bool hasStarted { get; set; }
 
+            public bool isVisible { get; set; }
+
+
         }
 
         private List<PreviewCanvasInfo> Preview_canvases = new List<PreviewCanvasInfo>();
@@ -223,7 +226,7 @@ namespace WpfApp1
             lastTick = now;
 
             // advance timeline
-            Vertical_Timeline_Transform.X += pixel_per_second * deltaSeconds;
+            Vertical_Timeline_Transform.X += pixel_per_second * deltaSeconds*zoomLevel;
 
             // update label only every 50ms
             timeSinceLastLabelUpdate += deltaSeconds;
@@ -241,6 +244,7 @@ namespace WpfApp1
 
         private void Timeline_Click(object sender, MouseButtonEventArgs e)
         {
+            isPlaying=false;    
             double mouseX = e.GetPosition(timeline).X;
 
             Vertical_Timeline_Transform.X = mouseX - Vertical_TimeLine.Width / 2;
@@ -441,6 +445,7 @@ namespace WpfApp1
                 borderRect = borderRect,
                 rect = rect,
                 hasStarted = false,
+                isVisible=false,
 
             };
 
@@ -1532,7 +1537,7 @@ namespace WpfApp1
 
                 info.Canvas.Width *= scaleFactor;
 
-
+                Debug.WriteLine($"width: {info.Canvas.Width},  Start: {info.start}, \n End: {info.end}, left: {info.leftShrinkAmount}");
                 // Scale current X relative to last zoom
                 translate.X *= scaleFactor;
                 info.leftShrinkAmount *= scaleFactor;
@@ -1563,7 +1568,7 @@ namespace WpfApp1
         //77
         private void UpdatePreviews()
         {
-            double timelineX = Vertical_Timeline_Transform.X;
+            double timelineX = Vertical_Timeline_Transform.X ;
 
             foreach (var p in Preview_canvases)
             {
@@ -1585,7 +1590,7 @@ namespace WpfApp1
                     {
                         if (!p.hasStarted)
                         {
-                            double timeToStart = (timelineX - p.start - p.leftShrinkAmount) / pixel_per_second;
+                            double timeToStart = ((timelineX - p.start - p.leftShrinkAmount) /zoomLevel) /pixel_per_second  ;
                             media.Position = TimeSpan.FromSeconds(Math.Max(0, timeToStart));
                             p.hasStarted = true;
                         }
@@ -1605,7 +1610,6 @@ namespace WpfApp1
                 }
             }
         }
-
 
 
         private void PauseAll()
