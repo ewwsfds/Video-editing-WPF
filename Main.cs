@@ -80,7 +80,7 @@ namespace WpfApp1
             public double height { get; set; }
             public double width { get; set; }
             // Instead of separate Image & MediaElement, use UIElement
-            public FrameworkElement Content { get; set; }
+            public object Content { get; set; }
 
             // Store aspect ratio H/W
             public double AspectRatio { get; set; } = 1;
@@ -208,34 +208,31 @@ namespace WpfApp1
 
         DispatcherTimer playTimer;
 
-        private DateTime lastTick;
 
         private void StartTimelinePlayback()
         {
-            double speed = pixel_per_second; // pixels per second
-
-            playTimer = new DispatcherTimer();
-            playTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
-            lastTick = DateTime.Now;
+            lastTick = Stopwatch.GetTimestamp();
             TimeChecker();
 
-            playTimer.Tick += (s, e) =>
-            {
-                if (!isPlaying) return;
-
-                // Measure actual elapsed time
-                DateTime now = DateTime.Now;
-                double deltaSeconds = (now - lastTick).TotalSeconds;
-                lastTick = now;
-
-                Vertical_Timeline_Transform.X += speed * deltaSeconds;
-                CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
-
-                PreviewChecker();
-            };
-
-            playTimer.Start();
+            CompositionTarget.Rendering += OnFrame;
         }
+
+        private long lastTick;
+
+        private void OnFrame(object sender, EventArgs e)
+        {
+            if (!isPlaying) return;
+
+            long now = Stopwatch.GetTimestamp();
+            double deltaSeconds = (now - lastTick) / (double)Stopwatch.Frequency;
+            lastTick = now;
+
+            Vertical_Timeline_Transform.X += pixel_per_second * deltaSeconds;
+            CurrentTime.Content = ((int)Vertical_Timeline_Transform.X).ToString();
+
+            PreviewCheckerOptimized();
+        }
+
 
 
 
@@ -248,7 +245,7 @@ namespace WpfApp1
 
                 if (!isPlaying)
                 {
-                  pauseALL();
+                    pauseALL();
 
                 }
             }
@@ -429,8 +426,8 @@ namespace WpfApp1
                 rightShrinkAmount = 0,
                 rectRight = rectRight,
                 borderRect = borderRect,
-                rect=rect,
-                hasStarted=false,
+                rect = rect,
+                hasStarted = false,
 
             };
 
@@ -564,7 +561,6 @@ namespace WpfApp1
 
             else if (fileType == ".mp4" || fileType == ".avi" || fileType == ".wmv")
             {
-
                 Preview_canvas.Opacity = 0;
                 Preview_canvas.IsHitTestVisible = false;
 
@@ -574,50 +570,53 @@ namespace WpfApp1
                 rect.Opacity = 0;
                 rect.IsHitTestVisible = false;
 
+                // ---------- MediaPlayer ----------
+                MediaPlayer media = new MediaPlayer();
 
-                MediaElement media = new MediaElement
+                // keep strong reference
+                info.Content = media;
+
+                // ---------- drawing pipeline ----------
+                VideoDrawing vd = new VideoDrawing
                 {
-                    Source = new Uri(path),
-                    LoadedBehavior = MediaState.Manual,
-                    UnloadedBehavior = MediaState.Manual,
-                    Stretch = Stretch.Fill   // NOT Uniform!
-
+                    Player = media,
+                    Rect = new Rect(0, 0, 1, 1)   // 🔥 REQUIRED
                 };
 
+                DrawingBrush brush = new DrawingBrush(vd)
+                {
+                    Stretch = Stretch.Fill
+                };
 
+                Rectangle videoRect = new Rectangle
+                {
+                    Fill = brush
+                };
+
+                // bind to canvas size
+                videoRect.SetBinding(FrameworkElement.WidthProperty,
+                    new Binding("ActualWidth") { Source = Preview_canvas });
+
+                videoRect.SetBinding(FrameworkElement.HeightProperty,
+                    new Binding("ActualHeight") { Source = Preview_canvas });
+
+                Preview_canvas.Children.Add(videoRect);
+
+                // ---------- open AFTER wiring ----------
+                media.Open(new Uri(path));
 
                 media.MediaOpened += (s, e) =>
                 {
+                    double aspect = (double)media.NaturalVideoHeight / media.NaturalVideoWidth;
+                    info.AspectRatio = aspect;
 
-
-
-
-                    // Räkna aspect ratio
-                    double videoAspect = (double)media.NaturalVideoHeight / media.NaturalVideoWidth; // H/W
-                    media.Width = targetWidth;
-                    media.Height = targetWidth * videoAspect;
-
-                    Preview_canvas.Width = targetWidth;
-                    Preview_canvas.Height = targetWidth * videoAspect;
-
-                    info.AspectRatio = videoAspect; // save it
-
-
-
-
-                    // ✅ Get total duration in seconds
                     if (media.NaturalDuration.HasTimeSpan)
                     {
-                        TimeSpan duration = media.NaturalDuration.TimeSpan;
-                        double totalSeconds = duration.TotalSeconds;
-
+                        double totalSeconds = media.NaturalDuration.TimeSpan.TotalSeconds;
                         canvas.Width = totalSeconds * pixel_per_second;
-                        info.end=translate.X+canvas.Width;
-
+                        info.end = translate.X + canvas.Width;
                         Canvas.SetLeft(rectRight, canvas.Width - rectRight.Width);
                     }
-
-
 
                     Preview_canvas.Opacity = 1;
                     Preview_canvas.IsHitTestVisible = true;
@@ -627,48 +626,33 @@ namespace WpfApp1
 
                     rect.Opacity = 1;
                     rect.IsHitTestVisible = true;
+
                 };
 
-                info.Content = media;
-                Content = media;
-                Preview_canvas.Children.Add(Content);
-
-                //apply image tiles
-
-                // create temp folder for THIS video
+                // frame extraction unchanged
                 string tempFolder = IOPath.Combine(IOPath.GetTempPath(), "VideoFrames_" + Guid.NewGuid());
                 Directory.CreateDirectory(tempFolder);
+                ExtractFramesAsync(path, tempFolder, canvas, rectRight);
 
-                // run extraction
-                ExtractFramesAsync(path, tempFolder, canvas,rectRight);
-
-
-
-
-
-                // Red outline rectangle
                 Rectangle outline = new Rectangle
                 {
-                    Stroke = Brushes.Red,      // the outline color
-                    StrokeThickness = 3,             // thickness of the border
-                    Fill = Brushes.Transparent       // no fill
+                    Stroke = Brushes.Red,
+                    StrokeThickness = 3,
+                    Fill = Brushes.Transparent
                 };
 
-                // Bind it to canvas size
                 outline.SetBinding(WidthProperty, new Binding("Width") { Source = canvas });
                 outline.SetBinding(HeightProperty, new Binding("Height") { Source = canvas });
 
-                // Make sure it appears above thumbnails
-                Canvas.SetZIndex(outline, -1); // above tileRect which is -99
-
+                Canvas.SetZIndex(outline, -1);
                 canvas.Children.Add(outline);
 
-                media.Play();
-                media.Pause();
 
+                media.Play();   // start here (safe timing)
+                media.Pause();   // start here (safe timing)
 
             }
-            ;
+
 
 
 
@@ -714,7 +698,7 @@ namespace WpfApp1
                 info.start = translate.X;
                 info.Y = translate.Y;
                 info.end = translate.X + canvas.Width;
-                PreviewChecker();
+                PreviewCheckerOptimized();
 
 
             };
@@ -1231,19 +1215,19 @@ namespace WpfApp1
             const int TileWidth = 90;
 
 
-            
-                string outputPattern = IOPath.Combine(tempFolder, "frame_%04d.png");
 
-                ProcessStartInfo psi = new ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = $"-i \"{videoPath}\" -vf fps=1/5 \"{outputPattern}\" -hide_banner -loglevel error",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+            string outputPattern = IOPath.Combine(tempFolder, "frame_%04d.png");
 
-                using (Process proc = Process.Start(psi))
-                    proc.WaitForExit();
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-i \"{videoPath}\" -vf fps=1/5 \"{outputPattern}\" -hide_banner -loglevel error",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (Process proc = Process.Start(psi))
+                proc.WaitForExit();
 
             // ---------- UI THREAD ----------
 
@@ -1467,7 +1451,7 @@ namespace WpfApp1
 
 
             DrawTimeline();
-            PreviewChecker();
+            PreviewCheckerOptimized();
 
         }
 
@@ -1563,53 +1547,70 @@ namespace WpfApp1
 
 
 
+        //77
+        private PreviewCanvasInfo activePreview;
 
-        private void PreviewChecker()
+        private void PreviewCheckerOptimized()
         {
             double timelineX = Vertical_Timeline_Transform.X;
 
-            foreach (var previewCanvas in Preview_canvases)
+            PreviewCanvasInfo found = null;
+
+            foreach (var p in Preview_canvases)
             {
-                // Check if timeline is within the canvas start/end
-                bool isVisible = previewCanvas.start < timelineX && timelineX <= previewCanvas.end;
-
-                // Update canvas visibility
-                previewCanvas.previewcanvas.Opacity = isVisible ? 1 : 0;
-                previewCanvas.previewcanvas.IsHitTestVisible = isVisible;
-
-                previewCanvas.borderRect.Opacity = isVisible ? 1 : 0;
-                previewCanvas.borderRect.IsHitTestVisible = isVisible;
-
-                previewCanvas.rect.Opacity = isVisible ? 1 : 0;
-                previewCanvas.rect.IsHitTestVisible = isVisible;
-
-                // Handle MediaElement
-                if (previewCanvas.Content is MediaElement media)
+                if (p.start < timelineX && timelineX <= p.end)
                 {
-                    if (isVisible && isPlaying)
-                    {
-                        // ✅ Only set position the first time this frame becomes visible
-                        if (!previewCanvas.hasStarted)
-                        {
-                            int timeToStartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount) / pixel_per_second;
-                            media.Position = TimeSpan.FromSeconds(Math.Max(0, timeToStartVideo));
-                            previewCanvas.hasStarted = true; // mark as initialized
-                        }
+                    found = p;
+                    break; // stop early
+                }
+            }
 
-                        media.Play();
-                    }
-                    else
-                    {
-                        media.Pause();
+            if (found == activePreview)
+                return; // nothing changed → ZERO WORK
 
-                        // Reset flag if the timeline leaves the canvas
-                        if (!isVisible)
-                            previewCanvas.hasStarted = false;
+            // ---- deactivate old ----
+            if (activePreview != null)
+            {
+                SetPreviewVisible(activePreview, false);
+
+                if (activePreview.Content is MediaPlayer m)
+                {
+                    m.Pause();
+                    activePreview.hasStarted = false;
+                }
+            }
+
+            // ---- activate new ----
+            activePreview = found;
+
+            if (activePreview != null)
+            {
+                SetPreviewVisible(activePreview, true);
+
+                if (activePreview.Content is MediaPlayer m)
+                {
+                    if (!activePreview.hasStarted)
+                    {
+                        double t = (timelineX - activePreview.start - activePreview.leftShrinkAmount) / pixel_per_second;
+                        m.Position = TimeSpan.FromSeconds(Math.Max(0, t));
+                        activePreview.hasStarted = true;
                     }
+
+                    if (isPlaying)
+                        m.Play();
                 }
             }
         }
 
+
+        private void SetPreviewVisible(PreviewCanvasInfo p, bool visible)
+        {
+            var v = visible ? Visibility.Visible : Visibility.Collapsed;
+
+            p.previewcanvas.Visibility = v;
+            p.borderRect.Visibility = v;
+            p.rect.Visibility = v;
+        }
 
 
         private void pauseALL()
@@ -1620,7 +1621,7 @@ namespace WpfApp1
             foreach (var previewCanvas in Preview_canvases)
             {
                 // Handle media playback if it's a MediaElement
-                if (previewCanvas.Content is MediaElement media)
+                if (previewCanvas.Content is MediaPlayer media)
                 {
                     media.Pause();
                 }
@@ -1655,16 +1656,16 @@ namespace WpfApp1
 
 
                 // Handle media playback if it's a MediaElement
-                if (previewCanvas.Content is MediaElement media)
+                if (previewCanvas.Content is MediaPlayer media)
                 {
                     if (isVisible)
                     {
-                        int timeTostartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount)/pixel_per_second;
+                        int timeTostartVideo = (int)(timelineX - previewCanvas.start - previewCanvas.leftShrinkAmount) / pixel_per_second;
                         // Convert seconds to TimeSpan
                         media.Position = TimeSpan.FromSeconds(timeTostartVideo);
                         if (isPlaying)
                         {
-                          media.Play();
+                            media.Play();
                         }
 
                     }
