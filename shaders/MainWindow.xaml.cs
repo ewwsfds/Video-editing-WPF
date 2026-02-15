@@ -1,7 +1,8 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
@@ -183,8 +184,6 @@ namespace InvertColorShader
             timer?.Stop();
             base.OnClosed(e);
         }
-
-
 
 
 
