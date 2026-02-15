@@ -1,0 +1,108 @@
+﻿<Window x:Class="InvertColorShader.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:InvertColorShader"
+        Title="Video Shader Effect - MediaPlayer Version" 
+        Height="500" 
+        Width="800"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" 
+                   Text="Invert Color Shader Effect (MediaPlayer)" 
+                   FontSize="20" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center" 
+                   Margin="10"/>
+
+        <!-- Video Player Area -->
+        <Border Grid.Row="1" 
+                BorderBrush="Gray" 
+                BorderThickness="1" 
+                Margin="10" 
+                CornerRadius="5"
+                Background="Black">
+            <Grid>
+                <!-- This Rectangle will display our video with shader effect -->
+                <Rectangle x:Name="VideoRectangle" Stretch="Uniform">
+                    <Rectangle.Fill>
+                        <DrawingBrush x:Name="VideoBrush" Stretch="Uniform" AlignmentX="Center" AlignmentY="Center"/>
+                    </Rectangle.Fill>
+                </Rectangle>
+
+                <TextBlock x:Name="NoVideoText" 
+                           Text="No video loaded. Click 'Import Video' to start." 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
+                           Foreground="Gray"
+                           FontSize="16"
+                           Background="Transparent"/>
+            </Grid>
+        </Border>
+
+        <!-- Controls -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Center" 
+                    Margin="10">
+
+            <Button x:Name="ImportButton" 
+                    Click="ImportButton_Click" 
+                    Content="📁 Import Video" 
+                    Width="120"/>
+
+            <Button x:Name="ApplyShaderButton" 
+                    Click="ApplyShaderButton_Click" 
+                    Content="🎨 Apply Shader" 
+                    Width="120"
+                    IsEnabled="False"/>
+
+            <Button x:Name="RemoveShaderButton" 
+                    Click="RemoveShaderButton_Click" 
+                    Content="❌ Remove Shader" 
+                    Width="120"
+                    IsEnabled="False"/>
+
+            <Button x:Name="PlayButton" 
+                    Click="PlayButton_Click" 
+                    Content="▶ Play" 
+                    Width="80"
+                    IsEnabled="False"/>
+
+            <Button x:Name="PauseButton" 
+                    Click="PauseButton_Click" 
+                    Content="⏸ Pause" 
+                    Width="80"
+                    IsEnabled="False"/>
+
+            <Button x:Name="StopButton" 
+                    Click="StopButton_Click" 
+                    Content="⏹ Stop" 
+                    Width="80"
+                    IsEnabled="False"/>
+        </StackPanel>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3" 
+                   VerticalAlignment="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Ready"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
