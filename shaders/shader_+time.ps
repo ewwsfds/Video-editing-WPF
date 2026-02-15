@@ -1,0 +1,14 @@
+sampler2D input : register(s0);
+float Time : register(c0);
+
+float4 main(float2 uv : TEXCOORD) : COLOR
+{
+    float2 center = float2(0.5, 0.5);
+    float2 diff = uv - center;
+    float dist = length(diff);
+
+    float ripple = 0.03 * sin(20.0 * dist - 4.0 * Time);
+    float2 rippleUV = uv + normalize(diff) * ripple;
+
+    return tex2D(input, rippleUV);
+}
